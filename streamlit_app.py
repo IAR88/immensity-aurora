@@ -30,7 +30,7 @@ def send_telegram(message):
         st.error(f"Could not send Telegram message: {e}")
 
 # --- DASHBOARD LAYOUT ---
-st.title("⚡ IMMENSITY AURORA - Scalping Bot")
+st.title("⚡ IMMENSITY AURORA")
 st.caption("24/7 Algorithmic Trading & Decision Support")
 
 # Sidebar status
