@@ -6,8 +6,21 @@ import os
 st.set_page_config(
     page_title="IMMENSITY AURORA",
     page_icon="⚡",
-    layout="wide"
+    layout="centered"
 )
+
+# App-like styling
+st.markdown("""
+    <style>
+    .metric-card {
+        background-color: #1e1e1e;
+        padding: 15px;
+        border-radius: 10px;
+        text-align: center;
+        border: 1px solid #333;
+    }
+    </style>
+""", unsafe_allow_html=True)
 
 st.title("⚡ IMMENSITY AURORA")
 st.caption("Engine | Capital Budget: 1000 SEK")
@@ -47,7 +60,7 @@ col1, col2, col3 = st.columns(3)
 
 with col1:
     total_trades = len(df_real_trades)
-    st.metric(label=" Real Trades Logged", value=total_trades)
+    st.metric(label="Real Trades", value=total_trades)
 
 with col2:
     executed_profits = (
@@ -55,16 +68,16 @@ with col2:
         if not df_real_trades.empty and "Estimated_Profit_SEK" in df_real_trades.columns 
         else 0.0
     )
-    st.metric(label=" Estimated Profit", value=f"{executed_profits:.2f} SEK")
+    st.metric(label="Est. Profit", value=f"{executed_profits:.2f} SEK")
 
 with col3:
     test_count = len(df_test_trades)
-    st.metric(label="🧪 Test Trades Logged", value=test_count)
+    st.metric(label="🧪 Test Trades", value=test_count)
 
 st.divider()
 
-# Tabbed Layout for Logs
-tab1, tab2, tab3 = st.tabs(["🧪 Test Trades", " Real Trades", "📊 Signal Summary"])
+# App Navigation Tabs
+tab1, tab2, tab3 = st.tabs(["🧪 Test", " Real", "📊 Signals"])
 
 with tab1:
     if not df_test_trades.empty:
@@ -80,7 +93,18 @@ with tab2:
 
 with tab3:
     if not df_signals.empty:
-        st.dataframe(df_signals, use_container_width=True)
+        st.markdown("### Latest Signals")
+        # Visa de senaste signalerna som snygga kort istället för en bred tabell
+        for index, row in df_signals.tail(5).iterrows():
+            with st.container():
+                st.markdown(f"""
+                - **Asset:** {row.get('Asset', 'N/A')}  
+                  **Status:** `{row.get('Status', 'N/A')}`  
+                  **Time:** {row.get('Timestamp', 'N/A')}
+                """)
+                st.markdown("---")
+        with st.expander("Visa alla signalloggar"):
+            st.dataframe(df_signals, use_container_width=True)
     else:
         st.info("No signal summary logs available yet.")
         
