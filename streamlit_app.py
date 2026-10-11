@@ -337,4 +337,4 @@ with tab4:
 
   st.info(
       "All trade values are automatically normalized to SEK with precise"
-      " timestamps and transaction IDs to ensure strict regulatory compliance."
+      " timestamps and transaction IDs to ensure strict regulatory compliance.")
