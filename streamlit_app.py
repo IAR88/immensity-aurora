@@ -9,99 +9,103 @@ st.set_page_config(
     layout="centered"
 )
 
-# Soft Lavender Light UI
+# Custom Soft Rounded UI
 st.markdown("""
 <style>
 /* Background */
 .stApp {
-    background: linear-gradient(180deg, #fbfbfe 0%, #f3f0ff 100%);
+    background: linear-gradient(180deg, #f8f6ff 0%, #f0ebff 100%);
     color: #1e1b4b;
 }
 
-/* Title */
+/* Header Styling */
 h1 {
     font-weight: 800 !important;
     letter-spacing: -0.5px;
-    background: linear-gradient(90deg, #a855f7, #c084fc);
+    background: linear-gradient(90deg, #9333ea, #c084fc);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
-    font-size: 2rem !important;
-    margin-bottom: 2px !important;
+    font-size: 1.8rem !important;
+    margin-bottom: 0px !important;
 }
 
-/* Subtitle */
 .stCaption {
     color: #7e22ce !important;
     font-weight: 600;
-    font-size: 0.85rem !important;
-    opacity: 0.8;
+    font-size: 0.8rem !important;
 }
 
-/* Metric Cards */
+/* Metric Cards - Soft Rounded */
 div[data-testid="stMetric"] {
-    background: rgba(255, 255, 255, 0.9);
-    border: 1px solid #f3e8ff;
-    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid #e9d5ff;
+    border-radius: 20px;
     padding: 16px;
-    box-shadow: 0 10px 20px -5px rgba(192, 132, 252, 0.1);
-    backdrop-filter: blur(12px);
+    box-shadow: 0 10px 25px -5px rgba(168, 85, 247, 0.08);
 }
 
 div[data-testid="stMetricLabel"] {
-    color: #6b21a8 !important;
+    color: #7e22ce !important;
     font-weight: 700 !important;
     font-size: 0.75rem !important;
     text-transform: uppercase;
-    letter-spacing: 0.8px;
 }
 
 div[data-testid="stMetricValue"] {
-    color: #4c1d95 !important;
+    color: #581c87 !important;
     font-weight: 800 !important;
     font-size: 1.6rem !important;
 }
 
-/* Signal Cards */
-.signal-card {
-    background: #ffffff;
-    border-radius: 14px;
-    padding: 14px 18px;
-    margin-bottom: 10px;
-    border: 1px solid #f3e8ff;
-    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.05);
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-/* Tabs Styling */
+/* Soft Pill Tabs Overhaul */
 .stTabs [data-baseweb="tab-list"] {
     gap: 8px;
-    background-color: rgba(243, 232, 255, 0.6);
+    background-color: rgba(233, 213, 255, 0.4);
     padding: 6px;
-    border-radius: 14px;
+    border-radius: 24px;
+    border: 1px solid #f3e8ff;
 }
 
 .stTabs [data-baseweb="tab"] {
-    border-radius: 10px;
-    color: #6b21a8;
+    border-radius: 20px;
+    color: #7e22ce;
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: 0.8rem;
     padding: 8px 16px;
+    border: none !important;
 }
 
 .stTabs [aria-selected="true"] {
-    background-color: #ffffff !important;
-    color: #9333ea !important;
-    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.15);
+    background: linear-gradient(135deg, #a855f7, #9333ea) !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 12px rgba(147, 51, 234, 0.25);
 }
 
-/* Dataframe Table Clean */
+/* Hide Red Line on Active Tab */
+.stTabs [data-baseweb="tab-highlight-title"] {
+    display: none !important;
+}
+
+/* Modern Rounded Table Container */
 div[data-testid="stDataFrame"] {
-    border: 1px solid #f3e8ff;
-    border-radius: 12px;
+    border: 1px solid #e9d5ff;
+    border-radius: 18px;
     overflow: hidden;
     background: #ffffff;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.02);
+}
+
+/* Custom Activity Cards */
+.soft-card {
+    background: #ffffff;
+    border-radius: 16px;
+    padding: 14px 18px;
+    margin-bottom: 10px;
+    border: 1px solid #f3e8ff;
+    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.04);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -121,7 +125,7 @@ df_real_trades = pd.DataFrame(columns=df_logs.columns) if not df_logs.empty else
 
 st.write("")
 
-# Metric Cards Row
+# Metrics
 col1, col2, col3 = st.columns(3)
 
 with col1:
@@ -140,44 +144,44 @@ with col3:
 
 st.write("")
 
-# Tabs
+# Soft Tabs Navigation
 tab1, tab2, tab3 = st.tabs(["🧪 Test Trades", "💼 Real Trades", "📊 Signal Summary"])
 
 with tab1:
     if not df_test_trades.empty:
-        st.dataframe(df_test_trades, use_container_width=True)
+        st.dataframe(df_test_trades, use_container_width=True, hide_index=True)
     else:
         st.info("No test trades available.")
 
 with tab2:
     if not df_real_trades.empty:
-        st.dataframe(df_real_trades, use_container_width=True)
+        st.dataframe(df_real_trades, use_container_width=True, hide_index=True)
     else:
         st.info("No real trades executed yet.")
 
 with tab3:
     if not df_signals.empty:
-        st.markdown("##### Recent Activity")
+        st.markdown("##### Recent Events")
         for _, row in df_signals.tail(5).iterrows():
             status = str(row.get('Status', 'N/A'))
             status_bg = "#faf5ff" if "Executed" in status else "#fffbeb"
             status_color = "#9333ea" if "Executed" in status else "#d97706"
             
             st.markdown(f"""
-                <div class="signal-card">
+                <div class="soft-card">
                     <div>
                         <strong style="color: #1e1b4b; font-size: 0.95rem;">{row.get('Asset', 'N/A')}</strong><br>
                         <span style="color: #9ca3af; font-size: 0.75rem;">{row.get('Timestamp', 'N/A')}</span>
                     </div>
                     <div>
-                        <span style="background: {status_bg}; color: {status_color}; border: 1px solid #f3e8ff; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 700;">{status}</span>
+                        <span style="background: {status_bg}; color: {status_color}; border: 1px solid #f3e8ff; padding: 5px 12px; border-radius: 12px; font-size: 0.75rem; font-weight: 700;">{status}</span>
                     </div>
                 </div>
             """, unsafe_allow_html=True)
             
         st.write("")
         with st.expander("Show full signal log"):
-            st.dataframe(df_signals, use_container_width=True)
+            st.dataframe(df_signals, use_container_width=True, hide_index=True)
     else:
         st.info("No signal summary logs available.")
         
