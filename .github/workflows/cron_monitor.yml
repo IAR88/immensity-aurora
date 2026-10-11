@@ -2,9 +2,11 @@ name: IMMENSITY AURORA 24/7 Engine Cron
 
 on:
   schedule:
-        - cron: '*/15 * * * *'workflow_dispatch:
+        on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
 
-jobs:
   run-engine:
     runs-on: ubuntu-latest
     steps:
