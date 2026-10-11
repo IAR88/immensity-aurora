@@ -10,7 +10,7 @@ st.set_page_config(
 )
 
 # Soft Lavender Light UI
-st.markdown("""
+st.markdown
     <style>
     /* Background */
     .stApp {
