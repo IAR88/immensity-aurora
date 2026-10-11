@@ -120,4 +120,6 @@ st.caption("ENGINE | CAPITAL BUDGET: 1,000.00 SEK")
 trade_log_path = "trade_log.csv"
 signal_summary_path = "signal_summary_log.csv"
 
-df_logs = pd.read_csv(trade_log_path) if os.path.exists(trade_log_path)
+df_logs = pd.read_csv(trade_log_path) if os.path.exists(trade_log_path) else pd.DataFrame()
+df_signals = pd.read_csv(signal_summary_path) if os.path.exists(
+    
