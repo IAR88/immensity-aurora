@@ -74,3 +74,5 @@ def send_push_notification(message):
         "message": message
     }
     requests.post(url, data=payload, timeout=5)
+PUSHOVER_USER_KEY = "uuizesg4hnzr7ng9mefar9h32mc1p"
+PUSHOVER_API_TOKEN = "aeswo8q1nvny2hxhbtqcou7shx6iw9"
