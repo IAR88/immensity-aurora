@@ -9,7 +9,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# Custom Soft White, Purple & Blue UI
+# Custom Soft White, Purple & Blue UI with Robust Tab Styling
 st.markdown("""
 <style>
 /* Background - White to Soft Purple/Blue Gradient */
@@ -59,8 +59,13 @@ div[data-testid="stMetricValue"] {
     font-size: 1.6rem !important;
 }
 
-/* Fully Rounded Pill Tabs (White, Purple & Blue) */
+/* Robust Pill Tabs Styling Overhaul */
+.stTabs {
+    background: transparent;
+}
+
 .stTabs [data-baseweb="tab-list"] {
+    display: flex;
     gap: 8px;
     background: rgba(238, 242, 255, 0.8);
     padding: 6px;
@@ -69,23 +74,29 @@ div[data-testid="stMetricValue"] {
 }
 
 .stTabs [data-baseweb="tab"] {
+    height: 40px;
+    background-color: transparent !important;
     border-radius: 24px !important;
-    color: #4338ca;
+    color: #4338ca !important;
     font-weight: 700;
     font-size: 0.82rem;
-    padding: 8px 18px;
+    padding: 0px 20px;
     border: none !important;
-    transition: all 0.2s ease-in-out;
+    box-shadow: none !important;
 }
 
 .stTabs [aria-selected="true"] {
     background: linear-gradient(135deg, #a855f7 0%, #3b82f6 100%) !important;
     color: #ffffff !important;
-    box-shadow: 0 4px 14px rgba(168, 85, 247, 0.3);
+    box-shadow: 0 4px 14px rgba(168, 85, 247, 0.3) !important;
 }
 
-/* Hide Red Line Under Active Tab */
-.stTabs [data-baseweb="tab-highlight-title"] {
+/* Remove default indicators and lines */
+.stTabs [data-baseweb="tab-highlight"] {
+    display: none !important;
+}
+
+.stTabs [data-baseweb="tab-border"] {
     display: none !important;
 }
 
@@ -187,3 +198,4 @@ with tab3:
             st.dataframe(df_signals, use_container_width=True, hide_index=True)
     else:
         st.info("No signal summary logs available.")
+        
