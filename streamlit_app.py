@@ -9,7 +9,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("⚡ IMMENSITY AURORA | Trading Engine Dashboard")
+st.title("⚡ IMMENSITY AURORA")
 st.markdown("Engine | Capital Budget: 1000 SEK")
 
 # Load logs safely
