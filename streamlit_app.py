@@ -65,24 +65,4 @@ if not df_signals.empty:
     st.dataframe(df_signals, use_container_width=True)
 else:
     st.info("No signal summary logs available yet.")
-tory Changes (50%)")
-        st.progress(0.90, text="P18: FX & Fee Dynamics (90%)")
-
-with tab3:
-    st.subheader("Execution History Log")
-    st.dataframe(df_logs, use_container_width=True)
-
-with tab4:
-    st.subheader("Swedish Tax Agency (Annex K4) & EU DAC8 Compliance")
-    st.markdown("Export audit logs formatted for Swedish tax filing and European Union DAC8 transparency requirements.")
-
-    csv_data = generate_tax_export(df_logs)
-
-    st.download_button(
-        label="📥 Export Annex K4 / DAC8 Audit File (CSV)",
-        data=csv_data,
-        file_name=f"immensity_aurora_tax_report_{datetime.now().strftime('%Y%m%d')}.csv",
-        mime="text/csv",
-    )
-
-    st.info("All transaction values are converted and stored in SEK with complete timestamps to comply with Skatteverket guidelines.")
+    
