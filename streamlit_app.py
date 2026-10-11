@@ -9,8 +9,8 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("IMMENSITY AURORA")
-st.markdown("Engine | Capital Budget: 1000 SEK")
+st.title("⚡ IMMENSITY AURORA")
+st.caption("Engine | Capital Budget: 1000 SEK")
 
 # Load logs safely
 trade_log_path = "trade_log.csv"
@@ -40,12 +40,14 @@ else:
     df_test_trades = pd.DataFrame()
     df_real_trades = pd.DataFrame()
 
-# Metrics overview
+st.divider()
+
+# Key Metrics Cards
 col1, col2, col3 = st.columns(3)
 
 with col1:
     total_trades = len(df_real_trades)
-    st.metric("Real Trades Logged", total_trades)
+    st.metric(label=" Real Trades Logged", value=total_trades)
 
 with col2:
     executed_profits = (
@@ -53,30 +55,32 @@ with col2:
         if not df_real_trades.empty and "Estimated_Profit_SEK" in df_real_trades.columns 
         else 0.0
     )
-    st.metric("Estimated Profit (SEK)", f"{executed_profits:.2f} SEK")
+    st.metric(label=" Estimated Profit", value=f"{executed_profits:.2f} SEK")
 
 with col3:
     test_count = len(df_test_trades)
-    st.metric("Test Trades Logged", test_count)
+    st.metric(label="🧪 Test Trades Logged", value=test_count)
 
 st.divider()
 
-# Display logs
-st.subheader("Test Trades")
-if not df_test_trades.empty:
-    st.dataframe(df_test_trades, use_container_width=True)
-else:
-    st.info("No test trades available.")
+# Tabbed Layout for Logs
+tab1, tab2, tab3 = st.tabs(["🧪 Test Trades", " Real Trades", "📊 Signal Summary"])
 
-st.subheader("Real Trades")
-if not df_real_trades.empty:
-    st.dataframe(df_real_trades, use_container_width=True)
-else:
-    st.info("No real trades executed yet.")
+with tab1:
+    if not df_test_trades.empty:
+        st.dataframe(df_test_trades, use_container_width=True)
+    else:
+        st.info("No test trades available.")
 
-st.subheader("Signal Summary Logs")
-if not df_signals.empty:
-    st.dataframe(df_signals, use_container_width=True)
-else:
-    st.info("No signal summary logs available yet.")
-    
+with tab2:
+    if not df_real_trades.empty:
+        st.dataframe(df_real_trades, use_container_width=True)
+    else:
+        st.info("No real trades executed yet.")
+
+with tab3:
+    if not df_signals.empty:
+        st.dataframe(df_signals, use_container_width=True)
+    else:
+        st.info("No signal summary logs available yet.")
+        
