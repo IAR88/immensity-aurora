@@ -80,7 +80,7 @@ if "starting_capital" not in st.session_state:
 
 # --- 5. ENGINE DECISION LOGIC & RISK (P1–P18 & KELLY) ---
 def run_immensity_aurora_engine(asset_name: str, base_probability: float, is_arbitrage: bool = False):
-    """Processes raw signals through P1-P18 telemetry, psychology, and Quarter-Kelly math."""
+    """Processes raw signals through P1-P18 telemetry, psychology, and Quarter-Kelly math (supports > 300 SEK allocations)."""
     confidence = base_probability
     win_loss_ratio = 2.0
     bankroll = st.session_state.starting_capital
@@ -90,8 +90,8 @@ def run_immensity_aurora_engine(asset_name: str, base_probability: float, is_arb
     kelly_fraction = max(0.0, kelly_fraction)
     allocated = bankroll * kelly_fraction
     
-    # Strict deterministic hard caps
-    max_cap = 300.0 if is_arbitrage else 50.0
+    # Expanded hard caps: up to 500 SEK for high-tier arbitrage/signals (> 300 SEK support)
+    max_cap = 500.0 if is_arbitrage else 100.0
     allocation = round(min(allocated, max_cap), 2)
     
     return allocation, confidence
@@ -126,7 +126,7 @@ df_logs = load_trade_logs()
 
 # Sidebar Controls (Hybrid Configuration)
 st.sidebar.header("Hybrid Execution Configuration")
-auto_micro_exec = st.sidebar.checkbox("Enable Auto-Execution for Micro-Positions (≤ 20 SEK, ≥ 90% Conf.)", value=True)
+auto_micro_exec = st.sidebar.checkbox("Enable Auto-Execution (≤ 20 SEK @ ≥ 90% Conf. / ≤ 50 SEK @ ≥ 95% Conf.)", value=True)
 risk_profile = st.sidebar.selectbox("Risk Profile", ["Conservative (Quarter-Kelly)", "Aggressive"])
 
 if st.session_state.circuit_breaker_active:
@@ -154,25 +154,28 @@ tab1, tab2, tab3, tab4 = st.tabs(
 )
 
 with tab1:
-    st.subheader("Live Market Signals & Hybrid Execution Feed")
+    st.subheader("Live Market Signals & Hybrid Execution Feed (> 300 SEK Support)")
 
     # Simulation Trigger
     col_btn1, col_btn2 = st.columns(2)
-    if col_btn1.button("Simulate Incoming Signal (P1–P18 Analysis)"):
-        allocation, confidence = run_immensity_aurora_engine("ETH/USDT", base_probability=0.92, is_arbitrage=False)
+    if col_btn1.button("Simulate Incoming High-Tier Signal (> 300 SEK)"):
+        allocation, confidence = run_immensity_aurora_engine("BTC/USDT", base_probability=0.98, is_arbitrage=True)
         
-        # Hybrid Decision Logic: Auto-execute if micro-sum and high confidence
-        if auto_micro_exec and allocation <= 20.0 and confidence >= 0.90 and not st.session_state.circuit_breaker_active:
-            status = "Executed (Autonomous Micro)"
+        # Hybrid Execution Rules: Autonomous only if micro/high-conf rules met, otherwise manual approval (supporting > 300 SEK)
+        is_auto_micro = (allocation <= 20.0 and confidence >= 0.90)
+        is_auto_high_conf = (allocation <= 50.0 and confidence >= 0.95)
+        
+        if auto_micro_exec and (is_auto_micro or is_auto_high_conf) and not st.session_state.circuit_breaker_active:
+            status = "Executed (Autonomous)"
         else:
-            status = "Pending (Manual Approval Required)"
+            status = "Pending (Manual Approval Required - >300 SEK Tier)"
 
         new_signal = pd.DataFrame([{
             "Timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "Asset": "ETH/USDT",
-            "Type": "Level 2 Buy (P1-P6 Confirmed)",
+            "Asset": "BTC/USDT",
+            "Type": "Arbitrage / High-Tier (> 300 SEK)",
             "Allocation_SEK": allocation,
-            "Estimated_Profit_SEK": round(allocation * 0.18, 2),
+            "Estimated_Profit_SEK": round(allocation * 0.12, 2),
             "Confidence": confidence,
             "Status": status,
             "SEK_Value": allocation,
@@ -180,7 +183,7 @@ with tab1:
         
         df_logs = pd.concat([new_signal, df_logs], ignore_index=True)
         save_trade_logs(df_logs)
-        send_telegram_alert(f"New Signal processed: ETH/USDT | Status: {status} | Allocation: {allocation} SEK")
+        send_telegram_alert(f"High-Tier Signal (>300 SEK) processed: BTC/USDT | Allocation: {allocation} SEK")
         st.rerun()
 
     if col_btn2.button("Trigger Black Swan Simulation (≥ 3% Drop)"):
@@ -200,7 +203,7 @@ with tab1:
                 if st.button("MANUAL GREEN LIGHT", key=f"exec_{idx}"):
                     df_logs.at[idx, "Status"] = "Executed (Manual)"
                     save_trade_logs(df_logs)
-                    send_telegram_alert(f"Manual Green Light approved: {row['Asset']} for {row['Allocation_SEK']} SEK")
+                    send_telegram_alert(f"Manual Green Light approved (> 300 SEK Tier): {row['Asset']} for {row['Allocation_SEK']} SEK")
                     st.success("Order executed successfully!")
                     st.rerun()
             st.divider()
