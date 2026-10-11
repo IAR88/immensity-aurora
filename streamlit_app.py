@@ -121,5 +121,69 @@ trade_log_path = "trade_log.csv"
 signal_summary_path = "signal_summary_log.csv"
 
 df_logs = pd.read_csv(trade_log_path) if os.path.exists(trade_log_path) else pd.DataFrame()
-df_signals = pd.read_csv(signal_summary_path) if os.path.exists(
-    
+df_signals = pd.read_csv(signal_summary_path) if os.path.exists(signal_summary_path) else pd.DataFrame()
+
+df_test_trades = df_logs if not df_logs.empty else pd.DataFrame()
+df_real_trades = pd.DataFrame(columns=df_logs.columns) if not df_logs.empty else pd.DataFrame()
+
+st.write("")
+
+# Metrics Row
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric(label="Real Trades", value=len(df_real_trades))
+
+with col2:
+    executed_profits = (
+        df_real_trades[df_real_trades["Status"].astype(str).str.contains("Executed")]["Estimated_Profit_SEK"].sum() 
+        if not df_real_trades.empty and "Estimated_Profit_SEK" in df_real_trades.columns 
+        else 0.0
+    )
+    st.metric(label="Est. Profit", value=f"{executed_profits:.2f} SEK")
+
+with col3:
+    st.metric(label="Test Trades", value=len(df_test_trades))
+
+st.write("")
+
+# Rounded Tabs
+tab1, tab2, tab3 = st.tabs(["🧪 Test Trades", "💼 Real Trades", "📊 Signal Summary"])
+
+with tab1:
+    if not df_test_trades.empty:
+        st.dataframe(df_test_trades, use_container_width=True, hide_index=True)
+    else:
+        st.info("No test trades available.")
+
+with tab2:
+    if not df_real_trades.empty:
+        st.dataframe(df_real_trades, use_container_width=True, hide_index=True)
+    else:
+        st.info("No real trades executed yet.")
+
+with tab3:
+    if not df_signals.empty:
+        st.markdown("##### Recent Events")
+        for _, row in df_signals.tail(5).iterrows():
+            status = str(row.get('Status', 'N/A'))
+            status_bg = "#f3e8ff" if "Executed" in status else "#eff6ff"
+            status_color = "#7e22ce" if "Executed" in status else "#2563eb"
+            
+            st.markdown(f"""
+                <div class="soft-card">
+                    <div>
+                        <strong style="color: #0f172a; font-size: 0.95rem;">{row.get('Asset', 'N/A')}</strong><br>
+                        <span style="color: #94a3b8; font-size: 0.75rem;">{row.get('Timestamp', 'N/A')}</span>
+                    </div>
+                    <div>
+                        <span style="background: {status_bg}; color: {status_color}; border: 1px solid #e0e7ff; padding: 5px 12px; border-radius: 14px; font-size: 0.75rem; font-weight: 700;">{status}</span>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+        st.write("")
+        with st.expander("Show full signal log"):
+            st.dataframe(df_signals, use_container_width=True, hide_index=True)
+    else:
+        st.info("No signal summary logs available.")
