@@ -33,11 +33,11 @@ else:
     df_signals = pd.DataFrame()
 
 # Separate Test Trades from Real Trades
-if not df_logs.empty and "Status" in df_logs.columns:
-    df_test_trades = df_logs[df_logs["Status"].astype(str).str.contains("Test|Pending|Manual", case=False, na=False)]
-    df_real_trades = df_logs[~df_logs["Status"].astype(str).str.contains("Test|Pending|Manual", case=False, na=False)]
+if not df_logs.empty:
+    df_test_trades = df_logs 
+    df_real_trades = pd.DataFrame(columns=df_logs.columns)
 else:
-    df_test_trades = df_logs
+    df_test_trades = pd.DataFrame()
     df_real_trades = pd.DataFrame()
 
 # Metrics overview
