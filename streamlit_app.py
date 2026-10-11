@@ -66,3 +66,11 @@ st.info("Connecting to Bybit REST API...")
 
 # Basic data display placeholder
 st.write("Waiting for the first trading signal...")
+def send_push_notification(message):
+    url = "https://api.pushover.net/1/messages.json"
+    payload = {
+        "token": st.secrets["PUSHOVER_APP_TOKEN"],
+        "user": st.secrets["PUSHOVER_USER_KEY"],
+        "message": message
+    }
+    requests.post(url, data=payload, timeout=5)
