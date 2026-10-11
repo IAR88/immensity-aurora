@@ -1,29 +1,101 @@
-```python
-import time
-from datetime import datetime
+import streamlit as st
 import pandas as pd
 import requests
-import streamlit as st
 
-# --- 1. STREAMLIT PAGE CONFIGURATION ---
+# --- PAGE CONFIGURATION ---
 st.set_page_config(
     page_title="IMMENSITY AURORA",
     page_icon="⚡",
-    layout="wide",
-    initial_sidebar_state="expanded",
+    layout="wide"
 )
 
-# --- 2. SECURE CONFIGURATION & SECRETS CHECK ---
+# --- FETCH SECRETS ---
 try:
-  BYBIT_API_KEY = st.secrets.get("BYBIT_API_KEY", "")
-  BYBIT_SECRET = st.secrets.get("BYBIT_SECRET", "")
-  TELEGRAM_TOKEN = st.secrets.get("TELEGRAM_TOKEN", "")
-  TELEGRAM_CHAT_ID = st.secrets.get("TELEGRAM_CHAT_ID", "")
-except Exception:
-  BYBIT_API_KEY = ""
-  BYBIT_SECRET = ""
-  TELEGRAM_TOKEN = ""
-  TELEGRAM_CHAT_ID = ""
+    BYBIT_API_KEY = st.secrets["BYBIT_API_KEY"]
+    BYBIT_SECRET = st.secrets["BYBIT_SECRET"]
+    PUSHOVER_USER_KEY = st.secrets["PUSHOVER_USER_KEY"]
+    PUSHOVER_API_TOKEN = st.secrets["PUSHOVER_API_TOKEN"]
+except Exception as e:
+    st.error(f"Missing Secrets: {e}")
+    st.stop()
+
+# --- FUNCTION FOR PUSHOVER NOTIFICATIONS WITH DEBUG ---
+def send_pushover(message):
+    url = "https://api.pushover.net/1/messages.json"
+    payload = {
+        "token": PUSHOVER_API_TOKEN,
+        "user": PUSHOVER_USER_KEY,
+        "message": message,
+        "title": "IMMENSITY AURORA"
+    }
+    try:
+        response = requests.post(url, data=payload, timeout=5)
+        res_json = response.json()
+        if response.status_code == 200 and res_json.get("status") == 1:
+            st.success("Pushover-notis skickades framgångsrikt!")
+        else:
+            st.error(f"Pushover-fel: {res_json}")
+    except Exception as e:
+        st.error(f"Kunde inte nå Pushover API: {e}")
+
+# --- DASHBOARD LAYOUT ---
+st.title("⚡ IMMENSITY AURORA")
+st.caption("24/7 Algorithmic Trading & Decision Support")
+
+# Sidebar status & settings
+with st.sidebar:
+    st.header("⚙️ Bot Status")
+    st.success("API keys loaded")
+    st.info("System: Active")
+    
+    currency = st.selectbox("Välj valuta", ["USD", "EUR"])
+    
+    if st.button("Test Push Notification"):
+        send_pushover("🚀 Testmeddelande från IMMENSITY AURORA!")
+
+# Determine symbol based on currency selection
+if currency == "EUR":
+    btc_symbol = "BTCEUR"
+    pair_label = "BTC/EUR"
+else:
+    btc_symbol = "BTCUSDT"
+    pair_label = "BTC/USDT"
+
+# Fetch live price from Bybit
+def get_bybit_price(symbol):
+    try:
+        url = f"https://api.bybit.com/v5/market/tickers?category=spot&symbol={symbol}"
+        response = requests.get(url, timeout=5).json()
+        if response["retCode"] == 0 and response["result"]["list"]:
+            return float(response["result"]["list"][0]["lastPrice"])
+    except Exception:
+        pass
+    return None
+
+current_price = get_bybit_price(btc_symbol)
+
+# Main content
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric(label="Status", value="Active", delta="24/7 Cloud")
+with col2:
+    st.metric(label="Pair", value=pair_label)
+with col3:
+    if current_price:
+        st.metric(label="Live Price", value=f"{current_price:,.2f} {currency}")
+    else:
+        st.metric(label="Live Price", value="Ansluter...")
+
+st.divider()
+
+st.subheader("📊 Market Data & Order Book")
+if current_price:
+    st.success(f"Hämtade live-pris från Bybit för {pair_label}: {current_price:,.2f} {currency}")
+else:
+    st.info("Connecting to Bybit REST API...")
+
+st.write("Waiting for the first trading signal...")
 
 
 # --- 3. TELEGRAM ALERT MODULE ---
