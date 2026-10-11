@@ -10,93 +10,174 @@ st.set_page_config(
 )
 
 # Soft Lavender Light UI
-st.markdown
-    <style>
-    /* Background */
-    .stApp {
-        background: linear-gradient(180deg, #fbfbfe 0%, #f3f0ff 100%);
-        color: #1e1b4b;
-    }
+st.markdown("""
+<style>
+/* Background */
+.stApp {
+    background: linear-gradient(180deg, #fbfbfe 0%, #f3f0ff 100%);
+    color: #1e1b4b;
+}
 
-    /* Title */
-    h1 {
-        font-weight: 800 !important;
-        letter-spacing: -0.5px;
-        background: linear-gradient(90deg, #a855f7, #c084fc);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        font-size: 2rem !important;
-        margin-bottom: 2px !important;
-    }
+/* Title */
+h1 {
+    font-weight: 800 !important;
+    letter-spacing: -0.5px;
+    background: linear-gradient(90deg, #a855f7, #c084fc);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-size: 2rem !important;
+    margin-bottom: 2px !important;
+}
 
-    /* Subtitle */
-    .stCaption {
-        color: #7e22ce !important;
-        font-weight: 600;
-        font-size: 0.85rem !important;
-        opacity: 0.8;
-    }
+/* Subtitle */
+.stCaption {
+    color: #7e22ce !important;
+    font-weight: 600;
+    font-size: 0.85rem !important;
+    opacity: 0.8;
+}
 
-    /* Metric Cards */
-    div[data-testid="stMetric"] {
-        background: rgba(255, 255, 255, 0.9);
-        border: 1px solid #f3e8ff;
-        border-radius: 16px;
-        padding: 16px;
-        box-shadow: 0 10px 20px -5px rgba(192, 132, 252, 0.1);
-        backdrop-filter: blur(12px);
-    }
+/* Metric Cards */
+div[data-testid="stMetric"] {
+    background: rgba(255, 255, 255, 0.9);
+    border: 1px solid #f3e8ff;
+    border-radius: 16px;
+    padding: 16px;
+    box-shadow: 0 10px 20px -5px rgba(192, 132, 252, 0.1);
+    backdrop-filter: blur(12px);
+}
 
-    div[data-testid="stMetricLabel"] {
-        color: #6b21a8 !important;
-        font-weight: 700 !important;
-        font-size: 0.75rem !important;
-        text-transform: uppercase;
-        letter-spacing: 0.8px;
-    }
+div[data-testid="stMetricLabel"] {
+    color: #6b21a8 !important;
+    font-weight: 700 !important;
+    font-size: 0.75rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
 
-    div[data-testid="stMetricValue"] {
-        color: #4c1d95 !important;
-        font-weight: 800 !important;
-        font-size: 1.6rem !important;
-    }
+div[data-testid="stMetricValue"] {
+    color: #4c1d95 !important;
+    font-weight: 800 !important;
+    font-size: 1.6rem !important;
+}
 
-    /* Signal Cards */
-    .signal-card {
-        background: #ffffff;
-        border-radius: 14px;
-        padding: 14px 18px;
-        margin-bottom: 10px;
-        border: 1px solid #f3e8ff;
-        box-shadow: 0 4px 12px rgba(168, 85, 247, 0.05);
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
+/* Signal Cards */
+.signal-card {
+    background: #ffffff;
+    border-radius: 14px;
+    padding: 14px 18px;
+    margin-bottom: 10px;
+    border: 1px solid #f3e8ff;
+    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
 
-    /* Tabs Styling */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background-color: rgba(243, 232, 255, 0.6);
-        padding: 6px;
-        border-radius: 14px;
-    }
+/* Tabs Styling */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 8px;
+    background-color: rgba(243, 232, 255, 0.6);
+    padding: 6px;
+    border-radius: 14px;
+}
 
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 10px;
-        color: #6b21a8;
-        font-weight: 700;
-        font-size: 0.85rem;
-        padding: 8px 16px;
-    }
+.stTabs [data-baseweb="tab"] {
+    border-radius: 10px;
+    color: #6b21a8;
+    font-weight: 700;
+    font-size: 0.85rem;
+    padding: 8px 16px;
+}
 
-    .stTabs [aria-selected="true"] {
-        background-color: #ffffff !important;
-        color: #9333ea !important;
-        box-shadow: 0 4px 12px rgba(168, 85, 247, 0.15);
-    }
+.stTabs [aria-selected="true"] {
+    background-color: #ffffff !important;
+    color: #9333ea !important;
+    box-shadow: 0 4px 12px rgba(168, 85, 247, 0.15);
+}
 
-    /* Dataframe Table Clean */
-    div[data-testid="stDataFrame"] {
-        border:
+/* Dataframe Table Clean */
+div[data-testid="stDataFrame"] {
+    border: 1px solid #f3e8ff;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #ffffff;
+}
+</style>
+""", unsafe_allow_html=True)
+
+st.title("⚡ IMMENSITY AURORA")
+st.caption("ENGINE | CAPITAL BUDGET: 1,000.00 SEK")
+
+# Load logs safely
+trade_log_path = "trade_log.csv"
+signal_summary_path = "signal_summary_log.csv"
+
+df_logs = pd.read_csv(trade_log_path) if os.path.exists(trade_log_path) else pd.DataFrame()
+df_signals = pd.read_csv(signal_summary_path) if os.path.exists(signal_summary_path) else pd.DataFrame()
+
+df_test_trades = df_logs if not df_logs.empty else pd.DataFrame()
+df_real_trades = pd.DataFrame(columns=df_logs.columns) if not df_logs.empty else pd.DataFrame()
+
+st.write("")
+
+# Metric Cards Row
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric(label="Real Trades", value=len(df_real_trades))
+
+with col2:
+    executed_profits = (
+        df_real_trades[df_real_trades["Status"].astype(str).str.contains("Executed")]["Estimated_Profit_SEK"].sum() 
+        if not df_real_trades.empty and "Estimated_Profit_SEK" in df_real_trades.columns 
+        else 0.0
+    )
+    st.metric(label="Est. Profit", value=f"{executed_profits:.2f} SEK")
+
+with col3:
+    st.metric(label="Test Trades", value=len(df_test_trades))
+
+st.write("")
+
+# Tabs
+tab1, tab2, tab3 = st.tabs(["🧪 Test Trades", "💼 Real Trades", "📊 Signal Summary"])
+
+with tab1:
+    if not df_test_trades.empty:
+        st.dataframe(df_test_trades, use_container_width=True)
+    else:
+        st.info("No test trades available.")
+
+with tab2:
+    if not df_real_trades.empty:
+        st.dataframe(df_real_trades, use_container_width=True)
+    else:
+        st.info("No real trades executed yet.")
+
+with tab3:
+    if not df_signals.empty:
+        st.markdown("##### Recent Activity")
+        for _, row in df_signals.tail(5).iterrows():
+            status = str(row.get('Status', 'N/A'))
+            status_bg = "#faf5ff" if "Executed" in status else "#fffbeb"
+            status_color = "#9333ea" if "Executed" in status else "#d97706"
+            
+            st.markdown(f"""
+                <div class="signal-card">
+                    <div>
+                        <strong style="color: #1e1b4b; font-size: 0.95rem;">{row.get('Asset', 'N/A')}</strong><br>
+                        <span style="color: #9ca3af; font-size: 0.75rem;">{row.get('Timestamp', 'N/A')}</span>
+                    </div>
+                    <div>
+                        <span style="background: {status_bg}; color: {status_color}; border: 1px solid #f3e8ff; padding: 4px 10px; border-radius: 8px; font-size: 0.75rem; font-weight: 700;">{status}</span>
+                    </div>
+                </div>
+            """, unsafe_allow_html=True)
+            
+        st.write("")
+        with st.expander("Show full signal log"):
+            st.dataframe(df_signals, use_container_width=True)
+    else:
+        st.info("No signal summary logs available.")
         
