@@ -1,8 +1,6 @@
-import urllib.parse
-import urllib.request
+import streamlit as st
+import pandas as pd
 import requests
-import streamlit as st  # type: ignore[reportMissingImports]
-import pandas as pd  # type: ignore[reportMissingImports]
 import time
 
 # --- PAGE CONFIGURATION ---
@@ -56,6 +54,12 @@ with col3:
     st.metric(label="Strategy", value="Scalping")
 
 st.divider()
+
+st.subheader("📊 Market Data & Order Book")
+st.info("Connecting to Bybit REST API...")
+
+# Basic data display placeholder
+st.write("Waiting for the first trading signal...")
 
 st.subheader("📊 Market Data & Order Book")
 st.info("Connecting to Bybit REST API...")
