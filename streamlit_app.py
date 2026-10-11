@@ -32,33 +32,47 @@ if os.path.exists(signal_summary_path):
 else:
     df_signals = pd.DataFrame()
 
+# Separate Test Trades from Real Trades
+if not df_logs.empty and "Status" in df_logs.columns:
+    df_test_trades = df_logs[df_logs["Status"].astype(str).str.contains("Test|Pending|Manual", case=False, na=False)]
+    df_real_trades = df_logs[~df_logs["Status"].astype(str).str.contains("Test|Pending|Manual", case=False, na=False)]
+else:
+    df_test_trades = df_logs
+    df_real_trades = pd.DataFrame()
+
 # Metrics overview
 col1, col2, col3 = st.columns(3)
 
 with col1:
-    total_trades = len(df_logs) if not df_logs.empty else 0
-    st.metric("Total Trades Logged", total_trades)
+    total_trades = len(df_real_trades)
+    st.metric("Real Trades Logged", total_trades)
 
 with col2:
     executed_profits = (
-        df_logs[df_logs["Status"].astype(str).str.contains("Executed")]["Estimated_Profit_SEK"].sum() 
-        if not df_logs.empty and "Estimated_Profit_SEK" in df_logs.columns 
+        df_real_trades[df_real_trades["Status"].astype(str).str.contains("Executed")]["Estimated_Profit_SEK"].sum() 
+        if not df_real_trades.empty and "Estimated_Profit_SEK" in df_real_trades.columns 
         else 0.0
     )
     st.metric("Estimated Profit (SEK)", f"{executed_profits:.2f} SEK")
 
 with col3:
-    active_signals = len(df_signals) if not df_signals.empty else 0
-    st.metric("Total Signals Processed", active_signals)
+    test_count = len(df_test_trades)
+    st.metric("Test Trades Logged", test_count)
 
 st.divider()
 
 # Display logs
-st.subheader("Trade Logs")
-if not df_logs.empty:
-    st.dataframe(df_logs, use_container_width=True)
+st.subheader("Test Trades")
+if not df_test_trades.empty:
+    st.dataframe(df_test_trades, use_container_width=True)
 else:
-    st.info("No trade logs available yet.")
+    st.info("No test trades available.")
+
+st.subheader("Real Trades")
+if not df_real_trades.empty:
+    st.dataframe(df_real_trades, use_container_width=True)
+else:
+    st.info("No real trades executed yet.")
 
 st.subheader("Signal Summary Logs")
 if not df_signals.empty:
