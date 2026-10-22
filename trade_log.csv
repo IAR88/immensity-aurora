@@ -1,4 +1,5 @@
 Timestamp,AssetClass,Asset,SeedLevel,Type,Allocation_SEK,Native_Currency,Est_Profit_Native,Est_Profit_SEK,Confidence,Status,SEK_Value
+2026-10-22 12:55:13,Stocks,ASML/EUR,Level 1: The Unknown Seed,Multi-Domain Convergence (Research + TikTok + Orderbook),45.0,EUR,0.82,9.4,0.98,Executed (Autonomous),45.0
 2026-10-22 12:01:28,Stocks,ASML/EUR,Level 1: The Unknown Seed,Multi-Domain Convergence (Research + TikTok + Orderbook),45.0,EUR,0.82,9.4,0.98,Executed (Autonomous),45.0
 2026-10-22 11:17:01,Stocks,ASML/EUR,Level 1: The Unknown Seed,Multi-Domain Convergence (Research + TikTok + Orderbook),45.0,EUR,0.82,9.4,0.98,Executed (Autonomous),45.0
 2026-10-22 10:44:42,Stocks,ASML/EUR,Level 1: The Unknown Seed,Multi-Domain Convergence (Research + TikTok + Orderbook),45.0,EUR,0.82,9.4,0.98,Executed (Autonomous),45.0
