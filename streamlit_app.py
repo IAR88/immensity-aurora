@@ -14,9 +14,7 @@ from engine_live import (
     AvanzaPortfolioSnapshot,
     HjarnanLiveEngine,
     PREDICTIVE_PARAMETER_NAMES,
-    is_bybit_ip_restriction,
     load_avanza_portfolio,
-    mock_predictive_parameters,
 )
 from auth.sessions_manager import bybit_api_domain_parts
 
@@ -83,13 +81,9 @@ def parse_bool(value, name):
     raise ValueError(f"{name} must be a boolean.")
 
 try:
-    mock_value = os.getenv("MOCK_MODE", secrets.get("MOCK_MODE", False))
-    MOCK_MODE = parse_bool(mock_value, "MOCK_MODE")
-    testnet_value = os.getenv(
-        "BYBIT_TESTNET", secrets.get("BYBIT_TESTNET", True)
-    )
+    testnet_value = secrets.get("BYBIT_TESTNET", os.getenv("BYBIT_TESTNET", True))
     BYBIT_TESTNET = parse_bool(testnet_value, "BYBIT_TESTNET")
-    BYBIT_DOMAIN = os.getenv("BYBIT_DOMAIN", secrets.get("BYBIT_DOMAIN", "bybit.com"))
+    BYBIT_DOMAIN = secrets.get("BYBIT_DOMAIN", os.getenv("BYBIT_DOMAIN", "bybit.com"))
     try:
         BYBIT_DOMAIN_NAME, BYBIT_DOMAIN_TLD = bybit_api_domain_parts(BYBIT_DOMAIN)
     except ValueError as error:
@@ -99,18 +93,15 @@ except ValueError as error:
     st.error(str(error))
     st.stop()
 
-BYBIT_API_KEY = secrets.get("BYBIT_API_KEY") or os.getenv("BYBIT_API_KEY", "")
+BYBIT_API_KEY = secrets.get("BYBIT_API_KEY", "")
 BYBIT_SECRET = (
     secrets.get("BYBIT_SECRET")
     or secrets.get("BYBIT_API_SECRET")
-    or os.getenv("BYBIT_SECRET")
-    or os.getenv("BYBIT_API_SECRET", "")
 )
-if not MOCK_MODE and (not BYBIT_API_KEY or not BYBIT_SECRET):
+if not BYBIT_API_KEY or not BYBIT_SECRET:
     st.error(
         "Bybit credentials are not configured. Add BYBIT_API_KEY and "
-        "BYBIT_SECRET (or BYBIT_API_SECRET) to Streamlit secrets or the "
-        "environment, or enable MOCK_MODE=true for offline use."
+        "BYBIT_SECRET (or BYBIT_API_SECRET) to Streamlit secrets."
     )
     st.stop()
 
@@ -127,10 +118,7 @@ def get_bybit_session(api_key, api_secret, testnet, domain, tld):
 
 # --- HELPER: FETCH REAL USDT BALANCE ---
 @st.cache_data(ttl=10)
-def get_live_usdt_balances(api_key, api_secret, testnet, simulated_mode=False):
-    if MOCK_MODE or simulated_mode:
-        available = float(os.getenv("MOCK_BYBIT_FREE_USDT", "200"))
-        return {"equity": available, "available": available}
+def get_live_usdt_balances(api_key, api_secret, testnet):
     session = get_bybit_session(
         api_key, api_secret, testnet, BYBIT_DOMAIN_NAME, BYBIT_DOMAIN_TLD
     )
@@ -160,9 +148,7 @@ def get_live_usdt_balances(api_key, api_secret, testnet, simulated_mode=False):
 
 
 @st.cache_data(ttl=10)
-def get_live_spot_holdings(api_key, api_secret, testnet, simulated_mode=False):
-    if MOCK_MODE or simulated_mode:
-        return [{"asset": "USDT", "equity": float(os.getenv("MOCK_BYBIT_FREE_USDT", "200"))}]
+def get_live_spot_holdings(api_key, api_secret, testnet):
     session = get_bybit_session(
         api_key, api_secret, testnet, BYBIT_DOMAIN_NAME, BYBIT_DOMAIN_TLD
     )
@@ -184,8 +170,6 @@ def get_live_spot_holdings(api_key, api_secret, testnet, simulated_mode=False):
 # --- HEADER ---
 st.title("⚡ IMMENSITY AURORA")
 st.caption("ENGINE | MULTI-SERVICE DASHBOARD | Soft Aurora Light")
-if MOCK_MODE:
-    st.info("Offline mock mode is active. Mock balances and signals are not live or tradeable.")
 
 AVANZA_POSITIONS_FILE = Path(
     os.getenv("AVANZA_POSITIONS_FILE", "avanza_positions.json")
@@ -205,7 +189,6 @@ avanza_snapshot = read_avanza_snapshot()
 # --- LIVE METRICS FRAGMENT ---
 @st.fragment(run_every=60)
 def render_live_metrics():
-    ip_restricted = st.session_state.get("bybit_ip_restricted", False)
     retry_at = st.session_state.get("bybit_balance_retry_at", 0.0)
     balance_error = st.session_state.get("bybit_balance_error")
     bybit_equity = st.session_state.get("bybit_balance")
@@ -214,18 +197,7 @@ def render_live_metrics():
     holdings_error = st.session_state.get("bybit_holdings_error")
     portfolio = read_avanza_snapshot()
 
-    if ip_restricted:
-        balances = get_live_usdt_balances(
-            BYBIT_API_KEY, BYBIT_SECRET, BYBIT_TESTNET, simulated_mode=True
-        )
-        bybit_equity = balances["equity"]
-        bybit_available = balances["available"]
-        spot_holdings = get_live_spot_holdings(
-            BYBIT_API_KEY, BYBIT_SECRET, BYBIT_TESTNET, simulated_mode=True
-        )
-        balance_error = None
-        holdings_error = None
-    elif time.time() >= retry_at:
+    if time.time() >= retry_at:
         try:
             balances = get_live_usdt_balances(
                 BYBIT_API_KEY,
@@ -240,38 +212,13 @@ def render_live_metrics():
             st.session_state["bybit_balance_retry_at"] = 0.0
             balance_error = None
         except (FailedRequestError, requests.exceptions.HTTPError) as error:
-            if is_bybit_ip_restriction(error):
-                st.session_state["bybit_ip_restricted"] = True
-                ip_restricted = True
-                balances = get_live_usdt_balances(
-                    BYBIT_API_KEY,
-                    BYBIT_SECRET,
-                    BYBIT_TESTNET,
-                    simulated_mode=True,
-                )
-                bybit_equity = balances["equity"]
-                bybit_available = balances["available"]
-                spot_holdings = get_live_spot_holdings(
-                    BYBIT_API_KEY,
-                    BYBIT_SECRET,
-                    BYBIT_TESTNET,
-                    simulated_mode=True,
-                )
-                st.session_state["bybit_balance"] = bybit_equity
-                st.session_state["bybit_available"] = bybit_available
-                st.session_state["bybit_spot_holdings"] = spot_holdings
-                st.session_state["bybit_balance_error"] = None
-                st.session_state["bybit_holdings_error"] = None
-                st.session_state["bybit_balance_retry_at"] = 0.0
-                balance_error = None
-                holdings_error = None
-            else:
-                retry_delay = 600 if getattr(error, "status_code", None) == 403 else 60
-                st.session_state["bybit_balance_error"] = (
-                    f"Bybit request failed (HTTP {getattr(error, 'status_code', 'unknown')})."
-                )
-                st.session_state["bybit_balance_retry_at"] = time.time() + retry_delay
-                balance_error = st.session_state["bybit_balance_error"]
+            retry_delay = 600 if getattr(error, "status_code", None) == 403 else 60
+            st.session_state["bybit_balance_error"] = (
+                f"Could not retrieve the Bybit balance: {error}. "
+                f"The dashboard will retry in {retry_delay // 60} minutes."
+            )
+            st.session_state["bybit_balance_retry_at"] = time.time() + retry_delay
+            balance_error = st.session_state["bybit_balance_error"]
         except Exception as error:
             st.session_state["bybit_balance_error"] = (
                 f"Could not retrieve the Bybit balance: {error}. "
@@ -280,48 +227,19 @@ def render_live_metrics():
             st.session_state["bybit_balance_retry_at"] = time.time() + 60
             balance_error = st.session_state["bybit_balance_error"]
 
-    if not ip_restricted:
-        try:
-            spot_holdings = get_live_spot_holdings(
-                BYBIT_API_KEY, BYBIT_SECRET, BYBIT_TESTNET
-            )
-            st.session_state["bybit_spot_holdings"] = spot_holdings
-            st.session_state["bybit_holdings_error"] = None
-            holdings_error = None
-        except (FailedRequestError, requests.exceptions.HTTPError) as error:
-            if is_bybit_ip_restriction(error):
-                st.session_state["bybit_ip_restricted"] = True
-                ip_restricted = True
-                balances = get_live_usdt_balances(
-                    BYBIT_API_KEY,
-                    BYBIT_SECRET,
-                    BYBIT_TESTNET,
-                    simulated_mode=True,
-                )
-                bybit_equity = balances["equity"]
-                bybit_available = balances["available"]
-                spot_holdings = get_live_spot_holdings(
-                    BYBIT_API_KEY,
-                    BYBIT_SECRET,
-                    BYBIT_TESTNET,
-                    simulated_mode=True,
-                )
-                st.session_state["bybit_balance"] = bybit_equity
-                st.session_state["bybit_available"] = bybit_available
-                st.session_state["bybit_spot_holdings"] = spot_holdings
-                st.session_state["bybit_balance_error"] = None
-                st.session_state["bybit_holdings_error"] = None
-                st.session_state["bybit_balance_retry_at"] = 0.0
-                balance_error = None
-                holdings_error = None
-            else:
-                holdings_error = f"Could not retrieve open spot holdings: {error}"
-                st.session_state["bybit_holdings_error"] = holdings_error
-        except Exception as error:
-            holdings_error = f"Could not retrieve open spot holdings: {error}"
-            st.session_state["bybit_holdings_error"] = holdings_error
-    if ip_restricted:
-        st.warning("Codespaces IP Restricted — Running in Simulated Mode")
+    try:
+        spot_holdings = get_live_spot_holdings(
+            BYBIT_API_KEY, BYBIT_SECRET, BYBIT_TESTNET
+        )
+        st.session_state["bybit_spot_holdings"] = spot_holdings
+        st.session_state["bybit_holdings_error"] = None
+        holdings_error = None
+    except (FailedRequestError, requests.exceptions.HTTPError) as error:
+        holdings_error = f"Could not retrieve open spot holdings: {error}"
+        st.session_state["bybit_holdings_error"] = holdings_error
+    except Exception as error:
+        holdings_error = f"Could not retrieve open spot holdings: {error}"
+        st.session_state["bybit_holdings_error"] = holdings_error
 
     row1_col1, row1_col2 = st.columns(2)
     with row1_col1:
@@ -477,14 +395,10 @@ with tab2:
 
 with tab3:
     st.subheader("P1–P15 Predictive Seeding Matrix")
-    if MOCK_MODE or st.session_state.get("bybit_ip_restricted", False):
-        parameters = mock_predictive_parameters()
-        st.caption("Offline fixture values (normalized demonstration data; not verified).")
-    else:
-        parameters = st.session_state.get("external_predictive_parameters")
-        if not isinstance(parameters, dict):
-            parameters = {}
-        st.info("Waiting for externally verified P1–P15 data. No fallback values are treated as verified.")
+    parameters = st.session_state.get("external_predictive_parameters")
+    if not isinstance(parameters, dict):
+        parameters = {}
+    st.info("Waiting for externally verified P1–P15 data. No fallback values are treated as verified.")
 
     for code, parameter_name in PREDICTIVE_PARAMETER_NAMES.items():
         value = parameters.get(parameter_name)

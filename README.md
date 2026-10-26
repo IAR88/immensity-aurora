@@ -49,6 +49,13 @@ orderbook imbalance, and CVD confirmation. Execution requires calibrated
 win probability of at least 80%. Fractional Kelly uses available free cash;
 at >=90% probability and confluence it uses full Kelly (never more than free
 cash), without a fixed transaction-dollar cap.
+
+The Streamlit dashboard always uses the Bybit API and requires `BYBIT_API_KEY`
+and `BYBIT_SECRET` (or `BYBIT_API_SECRET`) in Streamlit secrets. Configure
+`BYBIT_TESTNET` there to select testnet or mainnet; the dashboard does not
+switch to mock balances when an API request fails. Network or IP restrictions
+must be resolved with Bybit for live API data to be available.
+
 The engine prefers 6–10 accepted limit-order submissions per UTC day, enforces
 a maximum of 10, and never forces a trade merely to meet the lower target.
 Probability features are normalized to `[0, 1]` (CVD and momentum are
