@@ -132,6 +132,14 @@ ENV/
 env.bak/
 venv.bak/
 
+# Local live-trade analysis output
+data/trade_outcomes.jsonl*
+
+# Local Avanza session and portfolio data
+avanza_session.json
+avanza_portfolio.json
+avanza_positions.json
+
 # Spyder project settings
 .spyderproject
 .spyproject
