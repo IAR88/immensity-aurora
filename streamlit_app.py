@@ -8,7 +8,6 @@ import streamlit as st
 from dotenv import load_dotenv
 from pybit.exceptions import FailedRequestError
 from pybit.unified_trading import HTTP
-from streamlit.errors import StreamlitSecretNotFoundError
 
 from engine_live import (
     AvanzaPortfolioSnapshot,
@@ -65,12 +64,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- FETCH SECRETS ---
-try:
-    secrets = st.secrets
-except StreamlitSecretNotFoundError:
-    secrets = {}
-
 def parse_bool(value, name):
     if isinstance(value, bool):
         return value
@@ -82,13 +75,9 @@ def parse_bool(value, name):
     raise ValueError(f"{name} must be a boolean.")
 
 try:
-    testnet_value = secrets.get("BYBIT_TESTNET", os.getenv("BYBIT_TESTNET", True))
+    testnet_value = os.getenv("BYBIT_TESTNET", "True")
     BYBIT_TESTNET = parse_bool(testnet_value, "BYBIT_TESTNET")
-    BYBIT_DOMAIN = (
-        secrets.get("BYBIT_DOMAIN")
-        or os.getenv("BYBIT_DOMAIN")
-        or "bybit.eu"
-    )
+    BYBIT_DOMAIN = os.getenv("BYBIT_DOMAIN", "bybit.eu")
     try:
         BYBIT_DOMAIN_NAME, BYBIT_DOMAIN_TLD = bybit_api_domain_parts(BYBIT_DOMAIN)
     except ValueError as error:
@@ -98,15 +87,12 @@ except ValueError as error:
     st.error(str(error))
     st.stop()
 
-BYBIT_API_KEY = secrets.get("BYBIT_API_KEY", "")
-BYBIT_SECRET = (
-    secrets.get("BYBIT_SECRET")
-    or secrets.get("BYBIT_API_SECRET")
-)
+BYBIT_API_KEY = os.getenv("BYBIT_API_KEY", "")
+BYBIT_SECRET = os.getenv("BYBIT_SECRET") or os.getenv("BYBIT_API_SECRET")
 if not BYBIT_API_KEY or not BYBIT_SECRET:
     st.error(
         "Bybit credentials are not configured. Add BYBIT_API_KEY and "
-        "BYBIT_SECRET (or BYBIT_API_SECRET) to Streamlit secrets."
+        "BYBIT_SECRET (or BYBIT_API_SECRET) to the Render environment."
     )
     st.stop()
 
