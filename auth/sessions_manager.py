@@ -1,8 +1,13 @@
-import os
+from __future__ import annotations
 
-from avanza import Avanza
+import os
+from typing import TYPE_CHECKING
+
 from dotenv import load_dotenv
-from pybit.unified_trading import HTTP
+
+if TYPE_CHECKING:
+    from avanza import Avanza
+    from pybit.unified_trading import HTTP
 
 
 def bybit_api_domain_parts(domain: str) -> tuple[str, str]:
@@ -88,6 +93,8 @@ class SessionsManager:
             self.avanza_session = MockAvanzaSession()
             return
 
+        from avanza import Avanza
+
         username = self._required_env("AVANZA_USERNAME")
         password = self._required_env("AVANZA_PASSWORD")
         totp_secret = self._required_env("AVANZA_TOTP_SECRET")
@@ -129,6 +136,8 @@ class SessionsManager:
                 self.bybit_testnet = True
                 self.bybit_session = MockBybitSession(free_usdt)
                 return self.bybit_session
+
+            from pybit.unified_trading import HTTP
 
             credentials = self.get_bybit_credentials()
             testnet = credentials["testnet"]

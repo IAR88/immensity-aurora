@@ -1,12 +1,13 @@
 import json
 import tempfile
+import sys
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from types import ModuleType
 from unittest.mock import Mock, patch
 
 import requests
-from pybit.unified_trading import HTTP
 
 from auth.sessions_manager import SessionsManager, bybit_api_domain_parts
 from engine_live import (
@@ -23,6 +24,18 @@ from engine_live import (
     mock_predictive_parameters,
 )
 from trade_analysis import TradeAnalyzer
+
+
+class FakeBybitHTTP:
+    def __init__(self, *, testnet, domain, tld, **_):
+        self.testnet = testnet
+        self.endpoint = f"https://api.{domain}.{tld}"
+
+
+def fake_pybit_module():
+    module = ModuleType("pybit.unified_trading")
+    module.HTTP = FakeBybitHTTP
+    return module
 
 
 class FakeBybitSession:
@@ -199,18 +212,36 @@ class LiveEngineTests(unittest.TestCase):
                 clear=True,
             ),
             patch("auth.sessions_manager.load_dotenv"),
+            patch.dict(
+                sys.modules,
+                {"pybit.unified_trading": fake_pybit_module()},
+            ),
         ):
             session = SessionsManager().get_bybit_session()
         self.assertTrue(session.testnet)
 
     def test_eu_domain_resolves_to_pybit_european_hostname(self):
-        domain, tld = bybit_api_domain_parts("bybit.eu")
-        session = HTTP(
-            testnet=False,
-            domain=domain,
-            tld=tld,
-        )
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    "BYBIT_API_KEY": "test-key",
+                    "BYBIT_SECRET": "test-secret",
+                    "BYBIT_TESTNET": "false",
+                    "BYBIT_DOMAIN": "bybit.eu",
+                },
+                clear=True,
+            ),
+            patch("auth.sessions_manager.load_dotenv"),
+            patch.dict(
+                sys.modules,
+                {"pybit.unified_trading": fake_pybit_module()},
+            ),
+        ):
+            session = SessionsManager().get_bybit_session()
+
         self.assertEqual(session.endpoint, "https://api.bybit.eu")
+        self.assertFalse(session.testnet)
 
     def test_mock_mode_initializes_offline_sessions_without_credentials(self):
         with (

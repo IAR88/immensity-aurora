@@ -1,6 +1,8 @@
 import os
+import sys
+from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import bot
 
@@ -18,7 +20,7 @@ class FakeSession:
         return {"retCode": 0, "result": {"orderId": "test-order"}}
 
 
-def test_config(trading_enabled=False):
+def make_test_config(trading_enabled=False):
     return bot.BotConfig(
         symbols=("BTCUSDT",),
         trading_enabled=trading_enabled,
@@ -34,14 +36,18 @@ class BotStrategyTests(unittest.TestCase):
         self.assertTrue(config.testnet)
 
     def test_session_accepts_bybit_secret_alias(self):
-        config = test_config()
+        config = make_test_config()
+        http = Mock()
         with (
             patch.dict(
                 os.environ,
                 {"BYBIT_API_KEY": "test-key", "BYBIT_SECRET": "test-secret"},
                 clear=True,
             ),
-            patch("pybit.unified_trading.HTTP") as http,
+            patch.dict(
+                sys.modules,
+                {"pybit.unified_trading": SimpleNamespace(HTTP=http)},
+            ),
         ):
             bot.create_bybit_session(config)
 
@@ -82,7 +88,7 @@ class BotStrategyTests(unittest.TestCase):
             bot.process_market_check(
                 session,
                 "BTCUSDT",
-                test_config(trading_enabled=True),
+                make_test_config(trading_enabled=True),
                 {},
                 set(),
             )
@@ -98,7 +104,7 @@ class BotStrategyTests(unittest.TestCase):
             bot.process_market_check(
                 session,
                 "BTCUSDT",
-                test_config(),
+                make_test_config(),
                 {},
                 set(),
             )

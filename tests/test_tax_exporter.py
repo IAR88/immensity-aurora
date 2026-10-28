@@ -1,4 +1,5 @@
 import csv
+import importlib.util
 import sys
 import tempfile
 import types
@@ -362,12 +363,18 @@ class TaxExporterTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             csv_path = write_dac8_csv(ledger, Path(directory) / "dac8.csv")
             json_path = write_dac8_json(ledger, Path(directory) / "dac8.json")
-            pdf_path = write_k4_pdf(k4_rows, Path(directory) / "K4.pdf")
             with csv_path.open(newline="", encoding="utf-8-sig") as csv_file:
                 reader = csv.DictReader(csv_file)
                 self.assertEqual(tuple(reader.fieldnames or ()), DAC8_CSV_FIELDS)
                 self.assertEqual(next(reader)["gross_proceeds_sek"], "3000.00")
             self.assertIn(DAC8_EXPORT_LABEL, json_path.read_text(encoding="utf-8"))
+
+            if not all(
+                importlib.util.find_spec(name) for name in ("reportlab", "PIL")
+            ):
+                self.skipTest("K4 PDF export requires reportlab and Pillow.")
+
+            pdf_path = write_k4_pdf(k4_rows, Path(directory) / "K4.pdf")
             self.assertTrue(pdf_path.read_bytes().startswith(b"%PDF"))
 
 

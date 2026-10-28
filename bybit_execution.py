@@ -4,11 +4,18 @@ import logging
 import queue
 import threading
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from pybit.unified_trading import WebSocket
+if TYPE_CHECKING:
+    from pybit.unified_trading import WebSocket
 
 logger = logging.getLogger(__name__)
+
+
+def _create_websocket(**options: Any) -> WebSocket:
+    from pybit.unified_trading import WebSocket
+
+    return WebSocket(**options)
 
 
 class ExecutionStreamListener:
@@ -46,7 +53,9 @@ class ExecutionStreamListener:
         )
         self._worker.start()
         try:
-            self._websocket = WebSocket(channel_type="private", **self._options)
+            self._websocket = _create_websocket(
+                channel_type="private", **self._options
+            )
             self._websocket.execution_stream(callback=self._on_message)
         except Exception:
             self.stop()

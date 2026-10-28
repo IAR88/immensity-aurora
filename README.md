@@ -51,8 +51,8 @@ at >=90% probability and confluence it uses full Kelly (never more than free
 cash), without a fixed transaction-dollar cap.
 
 The Streamlit dashboard always uses the Bybit API and requires `BYBIT_API_KEY`
-and `BYBIT_SECRET` (or `BYBIT_API_SECRET`) in Streamlit secrets. Configure
-`BYBIT_TESTNET` there to select testnet or mainnet; the dashboard does not
+and `BYBIT_SECRET` (or `BYBIT_API_SECRET`) as environment variables in Render.
+Configure `BYBIT_TESTNET` there to select testnet or mainnet; the dashboard does not
 switch to mock balances when an API request fails. Set `BYBIT_DOMAIN` to the
 supported Bybit account domain (`bybit.com` or `bybit.eu`) when needed. A 403
 response is reported as an access restriction; check the selected domain, the
@@ -81,8 +81,11 @@ paired `protective_stop_provider` and `protective_stop_updater` callbacks; both
 must be connected to a verified market/position source and supported Bybit
 order-update operation before those adjustments can be applied to live orders.
 
-Add `BYBIT_API_KEY` and `BYBIT_SECRET` to Streamlit secrets to display the
-Bybit USDT equity and available balance. Configure `NTFY_TOPIC` to enable Ntfy notifications
+Add `BYBIT_API_KEY` and `BYBIT_SECRET` to the Render environment to display the
+Bybit USDT equity and available balance. Telegram credentials are optional and can be
+provided as
+`TELEGRAM_TOKEN` (or `TELEGRAM_BOT_TOKEN`) and `TELEGRAM_CHAT_ID` environment
+variables for the engine. Configure `NTFY_TOPIC` to enable Ntfy notifications
 for portfolio synchronization and signal changes. Use a private topic and set
 `NTFY_ACCESS_TOKEN` when required by the server. The smoke test
 `ntfy_notification_smoke_test.py` sends only to the configured topic.

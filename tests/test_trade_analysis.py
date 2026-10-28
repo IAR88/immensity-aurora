@@ -165,7 +165,7 @@ class ExecutionStreamListenerTests(unittest.TestCase):
             def exit(self):
                 self.exited = True
 
-        with patch("bybit_execution.WebSocket", FakeWebSocket):
+        with patch("bybit_execution._create_websocket", FakeWebSocket):
             listener = ExecutionStreamListener(
                 testnet=True,
                 domain="bybit",
