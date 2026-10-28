@@ -91,7 +91,7 @@ class BotConfig:
             trading_enabled=parse_bool(
                 os.getenv("BOT_TRADING_ENABLED", "false"), "BOT_TRADING_ENABLED"),
             testnet=parse_bool(
-                os.getenv("BYBIT_TESTNET", "false"), "BYBIT_TESTNET"),
+                os.getenv("BYBIT_TESTNET", "true"), "BYBIT_TESTNET"),
             allow_mainnet_trading=parse_bool(
                 os.getenv("BYBIT_ALLOW_MAINNET_TRADING", "false"),
                 "BYBIT_ALLOW_MAINNET_TRADING",
@@ -144,10 +144,12 @@ def parse_bool(value: str, name: str) -> bool:
 
 def create_bybit_session(config: BotConfig) -> HTTP:
     api_key = os.getenv("BYBIT_API_KEY", "").strip()
-    api_secret = os.getenv("BYBIT_API_SECRET", "").strip()
+    api_secret = (
+        os.getenv("BYBIT_SECRET") or os.getenv("BYBIT_API_SECRET", "")
+    ).strip()
     if not api_key or not api_secret:
         raise ValueError(
-            "BYBIT_API_KEY and BYBIT_API_SECRET must be configured.")
+            "BYBIT_API_KEY and BYBIT_SECRET (or BYBIT_API_SECRET) must be configured.")
 
     from auth.sessions_manager import bybit_api_domain_parts
     from pybit.unified_trading import HTTP

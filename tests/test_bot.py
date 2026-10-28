@@ -1,3 +1,4 @@
+import os
 import unittest
 from unittest.mock import patch
 
@@ -26,6 +27,32 @@ def test_config(trading_enabled=False):
 
 
 class BotStrategyTests(unittest.TestCase):
+    def test_environment_defaults_to_testnet(self):
+        with patch.dict(os.environ, {}, clear=True):
+            config = bot.BotConfig.from_environment()
+
+        self.assertTrue(config.testnet)
+
+    def test_session_accepts_bybit_secret_alias(self):
+        config = test_config()
+        with (
+            patch.dict(
+                os.environ,
+                {"BYBIT_API_KEY": "test-key", "BYBIT_SECRET": "test-secret"},
+                clear=True,
+            ),
+            patch("pybit.unified_trading.HTTP") as http,
+        ):
+            bot.create_bybit_session(config)
+
+        http.assert_called_once_with(
+            testnet=True,
+            domain="bybit",
+            tld="eu",
+            api_key="test-key",
+            api_secret="test-secret",
+        )
+
     def test_entry_signal_requires_cross_and_rsi_confirmation(self):
         self.assertEqual(bot.entry_signal(10, 11, 12, 11, 60), "Buy")
         self.assertEqual(bot.entry_signal(11, 10, 9, 10, 40), "Sell")
