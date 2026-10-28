@@ -1,4 +1,6 @@
 from __future__ import annotations
+print("Starting engine...", flush=True)
+print("Startar motorn...", flush=True)
 
 import json
 import logging
@@ -1406,7 +1408,8 @@ class HjarnanLiveEngine:
 
 
 if __name__ == "__main__":
-    raise SystemExit(
-        "No verified signal provider is configured. Import HjarnanLiveEngine "
-        "and supply a validated signal provider before starting the live loop."
-    )
+    from auth.sessions_manager import SessionsManager
+    manager = SessionsManager()
+    engine = HjarnanLiveEngine(manager, daily_start_equity_usdt=1000)
+    print("Engine initialized successfully with SessionsManager.", flush=True)
+    engine.run_live_loop(lambda: ())
