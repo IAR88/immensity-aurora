@@ -15,6 +15,7 @@ from engine_live import (
     HjarnanLiveEngine,
     PREDICTIVE_PARAMETER_NAMES,
     load_avanza_portfolio,
+    is_bybit_ip_restriction,
 )
 from auth.sessions_manager import bybit_api_domain_parts
 
@@ -83,7 +84,11 @@ def parse_bool(value, name):
 try:
     testnet_value = secrets.get("BYBIT_TESTNET", os.getenv("BYBIT_TESTNET", True))
     BYBIT_TESTNET = parse_bool(testnet_value, "BYBIT_TESTNET")
-    BYBIT_DOMAIN = secrets.get("BYBIT_DOMAIN", os.getenv("BYBIT_DOMAIN", "bybit.com"))
+    BYBIT_DOMAIN = (
+        secrets.get("BYBIT_DOMAIN")
+        or os.getenv("BYBIT_DOMAIN")
+        or "bybit.eu"
+    )
     try:
         BYBIT_DOMAIN_NAME, BYBIT_DOMAIN_TLD = bybit_api_domain_parts(BYBIT_DOMAIN)
     except ValueError as error:
@@ -167,9 +172,54 @@ def get_live_spot_holdings(api_key, api_secret, testnet):
             holdings.append({"asset": coin.get("coin", "unknown"), "equity": equity})
     return holdings
 
+
+def _bybit_http_status(error):
+    status_code = getattr(error, "status_code", None)
+    if status_code is None:
+        status_code = getattr(getattr(error, "response", None), "status_code", None)
+    try:
+        return int(status_code) if status_code is not None else None
+    except (TypeError, ValueError):
+        return None
+
+
+def _bybit_request_error_message(operation, error):
+    status_code = _bybit_http_status(error)
+    if status_code == 403 or is_bybit_ip_restriction(error):
+        return (
+            f"Could not retrieve {operation}: Bybit returned HTTP 403. "
+            f"Check that BYBIT_DOMAIN is correct for your account "
+            f"({BYBIT_DOMAIN}), verify the API key's IP allowlist, and confirm "
+            "API access is available in your jurisdiction with Bybit. Changing "
+            "the endpoint or using a proxy does not bypass regional restrictions."
+        )
+    if status_code == 401:
+        return (
+            f"Could not retrieve {operation}: Bybit returned HTTP 401 "
+            "(Unauthorized). Verify BYBIT_API_KEY and BYBIT_SECRET "
+            "(or BYBIT_API_SECRET), confirm the key is active and has the "
+            "required read permissions, and check that it belongs to the "
+            f"configured account domain ({BYBIT_DOMAIN})."
+        )
+    return f"Could not retrieve {operation}: {error}"
+
+
 # --- HEADER ---
 st.title("⚡ IMMENSITY AURORA")
 st.caption("ENGINE | MULTI-SERVICE DASHBOARD | Soft Aurora Light")
+
+if st.button("Refresh Dashboard"):
+    st.rerun()
+
+st.subheader("Background Worker Log")
+log_file = Path("trading_bot.log")
+try:
+    log_text = "\n".join(log_file.read_text(encoding="utf-8").splitlines()[-50:])
+except FileNotFoundError:
+    log_text = "trading_bot.log has not been created yet."
+except OSError as error:
+    log_text = f"Could not read trading_bot.log: {error}"
+st.text_area("Latest log entries", value=log_text, height=260, disabled=True)
 
 AVANZA_POSITIONS_FILE = Path(
     os.getenv("AVANZA_POSITIONS_FILE", "avanza_positions.json")
@@ -187,7 +237,6 @@ def read_avanza_snapshot():
 avanza_snapshot = read_avanza_snapshot()
 
 # --- LIVE METRICS FRAGMENT ---
-@st.fragment(run_every=60)
 def render_live_metrics():
     retry_at = st.session_state.get("bybit_balance_retry_at", 0.0)
     balance_error = st.session_state.get("bybit_balance_error")
@@ -212,9 +261,10 @@ def render_live_metrics():
             st.session_state["bybit_balance_retry_at"] = 0.0
             balance_error = None
         except (FailedRequestError, requests.exceptions.HTTPError) as error:
-            retry_delay = 600 if getattr(error, "status_code", None) == 403 else 60
+            status_code = _bybit_http_status(error)
+            retry_delay = 600 if status_code in {401, 403} else 60
             st.session_state["bybit_balance_error"] = (
-                f"Could not retrieve the Bybit balance: {error}. "
+                f"{_bybit_request_error_message('the Bybit balance', error)} "
                 f"The dashboard will retry in {retry_delay // 60} minutes."
             )
             st.session_state["bybit_balance_retry_at"] = time.time() + retry_delay
@@ -235,7 +285,9 @@ def render_live_metrics():
         st.session_state["bybit_holdings_error"] = None
         holdings_error = None
     except (FailedRequestError, requests.exceptions.HTTPError) as error:
-        holdings_error = f"Could not retrieve open spot holdings: {error}"
+        holdings_error = _bybit_request_error_message(
+            "open spot holdings", error
+        )
         st.session_state["bybit_holdings_error"] = holdings_error
     except Exception as error:
         holdings_error = f"Could not retrieve open spot holdings: {error}"

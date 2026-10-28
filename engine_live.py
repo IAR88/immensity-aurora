@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from decimal import Decimal, ROUND_DOWN
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 from urllib.parse import quote
 
 import requests
@@ -24,6 +24,15 @@ from auth.sessions_manager import (
     bybit_api_domain_parts,
 )
 from bybit_execution import ExecutionStreamListener
+from engine.bybit_client import BybitClient
+from engine.circuit_breaker import CircuitBreaker
+from engine.p1_p15_converter import (
+    P1P15Converter,
+    PREDICTIVE_PARAMETER_NAMES as ENGINE_PREDICTIVE_PARAMETER_NAMES,
+)
+from engine.opportunity_optimizer import OpportunityCostOptimizer
+from engine.regime_selector import RegimeSelector
+from engine.ring_buffer import RingBuffer
 from trade_analysis import TradeAnalyzer, TradeOutcome
 
 load_dotenv()
@@ -31,23 +40,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 TECHNICAL_SIGNALS = frozenset(f"P{number}" for number in range(1, 16))
-PREDICTIVE_PARAMETER_NAMES = {
-    "P1": "github_commit_velocity",
-    "P2": "arxiv_preprint_rate",
-    "P3": "tech_media_mention_index",
-    "P4": "eu_directive_impact_score",
-    "P5": "subsidy_tuff_index",
-    "P6": "regulatory_compliance_lag",
-    "P7": "viral_velocity_score",
-    "P8": "marketplace_shortage_index",
-    "P9": "lifestyle_shift_rate",
-    "P10": "supply_chain_bottleneck_index",
-    "P11": "weather_anomaly_impact",
-    "P12": "commodity_flow_velocity",
-    "P13": "cross_domain_correlation_coefficient",
-    "P14": "public_reaction_speed",
-    "P15": "trend_saturation_level",
-}
+PREDICTIVE_PARAMETER_NAMES = ENGINE_PREDICTIVE_PARAMETER_NAMES
 MIN_EXECUTION_WIN_PROBABILITY = 0.80
 HIGH_CONFLUENCE_THRESHOLD = 0.90
 
@@ -61,9 +54,9 @@ def is_bybit_ip_restriction(error: BaseException) -> bool:
 
 def mock_predictive_parameters() -> dict[str, float]:
     """Normalized offline fixture data; it is not verified or executable."""
-    return {
-        name: 1.0 for name in PREDICTIVE_PARAMETER_NAMES.values()
-    }
+    parameters = {name: 1.0 for name in PREDICTIVE_PARAMETER_NAMES.values()}
+    parameters["public_reaction_speed"] = 0.0
+    return parameters
 
 
 @dataclass(frozen=True, slots=True)
@@ -405,7 +398,24 @@ class HjarnanLiveEngine:
         self.mock_mode = bool(getattr(self.sessions, "mock_mode", False))
         self.bybit_ip_restricted = False
         self.bybit_testnet = self._read_testnet_flag(self.bybit_session)
-        self.bybit_endpoint = "https://api.bybit.eu"
+        domain, tld = bybit_api_domain_parts(
+            os.getenv("BYBIT_DOMAIN", "bybit.com")
+        )
+        self.bybit_endpoint = f"https://api.{domain}.{tld}"
+        if self.mock_mode:
+            self.bybit_client: BybitClient | None = None
+        else:
+            credentials = self.sessions.get_bybit_credentials()
+            api_key = credentials.get("api_key")
+            api_secret = credentials.get("api_secret")
+            if not isinstance(api_key, str) or not isinstance(api_secret, str):
+                raise ValueError("Bybit credentials are required for REST trading.")
+            self.bybit_client = BybitClient(
+                api_key,
+                api_secret,
+                testnet=self.bybit_testnet,
+                domain=os.getenv("BYBIT_DOMAIN", "bybit.com"),
+            )
         self.allow_mainnet_trading = self._env_bool(
             "BYBIT_ALLOW_MAINNET_TRADING", default=False
         )
@@ -426,6 +436,15 @@ class HjarnanLiveEngine:
         self._equity_date: date | None = None
         self._daily_halted = False
         self._daily_trade_count = 0
+        config_path = Path(__file__).resolve().parent / "config" / "sesamfro_graph.json"
+        self.regime_selector = RegimeSelector.from_file(config_path)
+        self.circuit_breaker = CircuitBreaker(
+            max_drawdown_pct=self.circuit_breaker_pct,
+            p14_threshold=self.regime_selector.p14_threshold,
+        )
+        self.opportunity_optimizer = OpportunityCostOptimizer()
+        self.equity_history: RingBuffer[float] = RingBuffer(capacity=512)
+        self.signal_score_history: RingBuffer[float] = RingBuffer(capacity=512)
         self.probability_calibrator = (
             IsotonicCalibrator(calibration_observations)
             if calibration_observations is not None
@@ -474,17 +493,27 @@ class HjarnanLiveEngine:
     ) -> dict[str, object]:
         method = getattr(self.bybit_session, method_name)
         try:
-            return method(*args, **kwargs)
+            response = method(*args, **kwargs)
         except (FailedRequestError, requests.exceptions.HTTPError) as error:
             if not is_bybit_ip_restriction(error):
                 raise
             self._activate_simulated_mode()
             if method_name == "get_wallet_balance":
-                return self.bybit_session.get_wallet_balance(*args, **kwargs)
+                response = self.bybit_session.get_wallet_balance(*args, **kwargs)
+            else:
+                raise RuntimeError(
+                    "Bybit IP is restricted; running in simulated mode and "
+                    "the requested live operation was not performed."
+                ) from error
+        if not isinstance(response, Mapping):
+            raise RuntimeError(f"Bybit {method_name} returned a malformed response.")
+        ret_code = response.get("retCode")
+        if ret_code is None or str(ret_code) != "0":
+            ret_message = response.get("retMsg", "missing response code")
             raise RuntimeError(
-                "Bybit IP is restricted; running in simulated mode and "
-                "the requested live operation was not performed."
-            ) from error
+                f"Bybit {method_name} failed ({ret_code}): {ret_message}"
+            )
+        return dict(response)
 
     @staticmethod
     def _env_bool(name: str, *, default: bool) -> bool:
@@ -715,18 +744,29 @@ class HjarnanLiveEngine:
         ):
             raise ValueError("Every P1-P15 signal must be present and verified true.")
         parameters = signal.predictive_parameters
-        if not isinstance(parameters, Mapping) or set(parameters) != set(
-            PREDICTIVE_PARAMETER_NAMES.values()
-        ):
+        if not isinstance(parameters, Mapping):
             raise ValueError("Every named P1-P15 predictive parameter is required.")
-        for name, raw_value in parameters.items():
-            value = self._finite_number(raw_value, name)
-            upper_bound = 3 if name == "trend_saturation_level" else 1
-            lower_bound = 1 if name == "trend_saturation_level" else 0
-            if not lower_bound <= value <= upper_bound:
-                raise ValueError(f"{name} must be between {lower_bound} and {upper_bound}.")
-        if parameters["trend_saturation_level"] >= 3:
+        normalized_parameters = P1P15Converter.convert(parameters)
+        self.signal_score_history.append(signal.probability_features.score())
+        regime = self.regime_selector.select(
+            normalized_parameters["trend_saturation_level"]
+        )
+        if not regime.entry_allowed:
             raise ValueError("P15 Level 3 saturation rejects new seed entries.")
+        was_p14_latched = self.circuit_breaker.p14_latched
+        p14_allowed = self.circuit_breaker.check_p14(
+            normalized_parameters["public_reaction_speed"]
+        )
+        if not p14_allowed:
+            if not was_p14_latched:
+                self.notify_ntfy(
+                    "P14 circuit breaker activated",
+                    self.circuit_breaker.p14_reason
+                    or "Trading is halted pending manual review.",
+                )
+            raise ValueError(
+                f"P14 circuit breaker is active: {self.circuit_breaker.p14_reason}"
+            )
 
         calculated_ev = (
             probability * take_profit - (1 - probability) * stop_loss - costs
@@ -883,6 +923,7 @@ class HjarnanLiveEngine:
         equity = self._finite_number(accounts[0].get("totalEquity"), "total equity")
         if equity <= 0:
             raise RuntimeError("Bybit account equity must be positive.")
+        self.equity_history.append(equity)
         return equity
 
     def _check_daily_drawdown(self, equity: float) -> bool:
@@ -895,19 +936,20 @@ class HjarnanLiveEngine:
             self._daily_trade_count = 0
 
         assert self.daily_start_equity_usdt is not None
-        drawdown = equity / self.daily_start_equity_usdt - 1
-        if drawdown <= self.circuit_breaker_pct:
-            if not self._daily_halted:
-                self._daily_halted = True
-                logger.critical(
-                    "Daily drawdown circuit breaker triggered: %.2f%% (limit %.2f%%).",
-                    drawdown * 100,
-                    self.circuit_breaker_pct * 100,
-                )
-                self.notify_telegram(
-                    f"Trading halted: daily drawdown reached {drawdown:.2%}."
-                )
-        return not self._daily_halted
+        was_halted = self._daily_halted
+        allowed = self.circuit_breaker.check_daily_drawdown(
+            equity, self.daily_start_equity_usdt, today
+        )
+        self._daily_halted = not allowed
+        if self._daily_halted and not was_halted:
+            logger.critical(
+                "Daily drawdown circuit breaker triggered: %s",
+                self.circuit_breaker.drawdown_reason,
+            )
+            self.notify_telegram(
+                f"Trading halted: {self.circuit_breaker.drawdown_reason}"
+            )
+        return allowed
 
     @staticmethod
     def _decimal(value: float) -> Decimal:
@@ -1138,6 +1180,130 @@ class HjarnanLiveEngine:
         if target_symbols is not None:
             self.analyze_stock_rotation(positions, target_symbols)
         return positions
+
+    def process_market_cycle(
+        self,
+        active_positions: Iterable[dict[str, object]],
+        incoming_signals: Iterable[dict[str, object]],
+        *,
+        liquidate_position: Callable[[dict[str, object]], object] | None = None,
+        enter_signal: Callable[[dict[str, object]], object] | None = None,
+    ) -> int:
+        """Reallocate snapshots using explicit, caller-owned execution adapters.
+
+        The close callback must return ``False`` when liquidation did not
+        succeed. An entry callback is only called after a successful close.
+        """
+        liquidate_position = liquidate_position or self._liquidate_bybit_position
+        enter_signal = enter_signal or self._enter_bybit_signal
+        if not callable(liquidate_position) or not callable(enter_signal):
+            raise TypeError("Reallocation requires callable close and entry adapters.")
+
+        positions = list(active_positions)
+        signals = list(incoming_signals)
+        if any(not isinstance(position, dict) for position in positions):
+            raise TypeError("Every active position must be a dict.")
+        if any(not isinstance(signal, dict) for signal in signals):
+            raise TypeError("Every incoming signal must be a dict.")
+
+        used_signals: set[int] = set()
+        reallocations = 0
+        for position in positions:
+            current_symbol = position.get("symbol")
+            if not isinstance(current_symbol, str) or not current_symbol:
+                raise ValueError("Every active position must include a symbol.")
+
+            best_signal: dict[str, object] | None = None
+            best_advantage = self.opportunity_optimizer.fee_hurdle
+            for signal in signals:
+                if id(signal) in used_signals:
+                    continue
+                new_symbol = signal.get("symbol")
+                if not isinstance(new_symbol, str) or not new_symbol:
+                    raise ValueError("Every incoming signal must include a symbol.")
+                if new_symbol == current_symbol:
+                    continue
+                if not self.opportunity_optimizer.evaluate_reallocation(
+                    position, signal
+                ):
+                    continue
+
+                advantage = (
+                    float(signal["new_roi"]) - float(position["current_roi"])
+                )
+                if best_signal is None or advantage > best_advantage:
+                    best_signal = signal
+                    best_advantage = advantage
+
+            if best_signal is None:
+                continue
+            if liquidate_position(position) is False:
+                raise RuntimeError(
+                    f"Liquidation failed for {current_symbol}; re-entry was not attempted."
+                )
+            try:
+                entry_result = enter_signal(best_signal)
+            except Exception as error:
+                raise RuntimeError(
+                    f"Re-entry into {best_signal['symbol']} failed after "
+                    f"liquidating {current_symbol}."
+                ) from error
+            if entry_result is False:
+                raise RuntimeError(
+                    f"Re-entry into {best_signal['symbol']} failed after "
+                    f"liquidating {current_symbol}."
+                )
+            used_signals.add(id(best_signal))
+            reallocations += 1
+
+        return reallocations
+
+    def _liquidate_bybit_position(
+        self, position: dict[str, object]
+    ) -> dict[str, Any]:
+        if self.mock_mode or self.bybit_client is None:
+            raise RuntimeError("Mock mode cannot liquidate Bybit positions.")
+        symbol = position.get("symbol")
+        if not isinstance(symbol, str):
+            raise ValueError("Active position must include a Bybit symbol.")
+        return self.bybit_client.close_position(symbol)
+
+    def _enter_bybit_signal(self, signal: dict[str, object]) -> dict[str, Any]:
+        if self.mock_mode or self.bybit_client is None:
+            raise RuntimeError("Mock mode cannot enter Bybit positions.")
+        live_signal = signal.get("live_trade_signal")
+        if not isinstance(live_signal, LiveTradeSignal):
+            raise TypeError(
+                "A reallocation entry requires a validated LiveTradeSignal in "
+                "'live_trade_signal'."
+            )
+        if signal.get("symbol") != live_signal.symbol:
+            raise ValueError("Reallocation symbol does not match LiveTradeSignal.")
+        self.validate_signal(live_signal)
+        if not self._check_daily_drawdown(self._account_equity()):
+            raise RuntimeError("Daily drawdown circuit breaker is active.")
+        if self._daily_trade_count >= self.max_trades_per_day:
+            raise RuntimeError("Daily trade limit has been reached.")
+        raw_quantity = signal.get("qty")
+        quantity = self._finite_number(raw_quantity, "reallocation quantity")
+        if quantity <= 0:
+            raise ValueError("Reallocation quantity must be positive.")
+        if live_signal.side == "Buy":
+            available = self._available_balance("USDT")
+            if quantity * live_signal.entry_price > available:
+                raise ValueError("Reallocation buy exceeds available USDT balance.")
+        else:
+            base_coin = live_signal.symbol.removesuffix("USDT")
+            if quantity > self._available_balance(base_coin):
+                raise ValueError("Reallocation sell exceeds available base balance.")
+        result = self.bybit_client.execute_order(
+            live_signal.symbol,
+            live_signal.side,
+            quantity,
+            "Market",
+        )
+        self._daily_trade_count += 1
+        return result
 
     def run_live_loop(
         self,

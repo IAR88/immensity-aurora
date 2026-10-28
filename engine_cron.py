@@ -6,16 +6,20 @@ import requests
 LOG_FILE = "trade_log.csv"
 SIGNAL_SUMMARY_LOG = "signal_summary_log.csv"
 
-def send_telegram(msg: str):
-    token = os.environ.get("TELEGRAM_TOKEN", "")
-    chat_id = os.environ.get("TELEGRAM_CHAT_ID", "")
-    if not token or not chat_id:
+def send_ntfy(msg: str):
+    topic = os.environ.get("NTFY_TOPIC", "")
+    if not topic:
         return
     try:
-        url = f"https://api.telegram.org/bot{token}/sendMessage"
-        requests.post(url, json={"chat_id": chat_id, "text": f"⚡ CRON ENGINE ALERT:\n{msg}", "parse_mode": "Markdown"}, timeout=5)
+        url = f"https://ntfy.sh/{topic}"
+        requests.post(
+            url,
+            data=f"CRON ENGINE ALERT:\n{msg}".encode("utf-8"),
+            headers={"Title": "IMMENSITY AURORA"},
+            timeout=5
+        )
     except Exception as e:
-        print(f"Telegram failed: {e}")
+        print(f"Ntfy failed: {e}")
 
 def multi_domain_intelligence_grid_scan():
     """
@@ -60,7 +64,6 @@ def run_cron_cycle():
     print("Starting IMMENSITY AURORA 24/7 Multi-Domain Intelligence Grid scan...")
     signal = multi_domain_intelligence_grid_scan()
 
-    # Log comprehensive signal summary for engine optimization
     log_signal_summary(signal)
 
     if os.path.exists(LOG_FILE):
@@ -101,9 +104,8 @@ def run_cron_cycle():
     df_logs = pd.concat([new_entry, df_logs], ignore_index=True)
     df_logs.to_csv(LOG_FILE, index=False)
     
-    send_telegram(f"Intelligence Grid Signal: {signal['asset']} | Summary: {signal['summary']} | Status: {status}")
+    send_ntfy(f"Intelligence Grid Signal: {signal['asset']} | Summary: {signal['summary']} | Status: {status}")
     print("Multi-Domain Intelligence Grid cron cycle completed successfully.")
 
 if __name__ == "__main__":
     run_cron_cycle()
-    

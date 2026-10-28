@@ -158,8 +158,22 @@ class LiveEngineTests(unittest.TestCase):
             predictive_parameters=mock_predictive_parameters(),
         )
 
-    def test_engine_uses_bybit_eu_api_endpoint(self):
-        self.assertEqual(self.engine.bybit_endpoint, "https://api.bybit.eu")
+    def test_engine_uses_configured_bybit_api_endpoint(self):
+        with patch.dict("os.environ", {"BYBIT_DOMAIN": "bybit.eu"}):
+            engine = HjarnanLiveEngine(
+                self.manager,
+                daily_start_equity_usdt=1000,
+                calibration_observations=self.observations,
+            )
+        self.assertEqual(engine.bybit_endpoint, "https://api.bybit.eu")
+
+        with patch.dict("os.environ", {"BYBIT_DOMAIN": "bybit.com"}):
+            engine = HjarnanLiveEngine(
+                self.manager,
+                daily_start_equity_usdt=1000,
+                calibration_observations=self.observations,
+            )
+        self.assertEqual(engine.bybit_endpoint, "https://api.bybit.com")
 
     def test_http_403_switches_engine_to_mock_data_and_blocks_orders(self):
         error = requests.exceptions.HTTPError(

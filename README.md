@@ -53,8 +53,11 @@ cash), without a fixed transaction-dollar cap.
 The Streamlit dashboard always uses the Bybit API and requires `BYBIT_API_KEY`
 and `BYBIT_SECRET` (or `BYBIT_API_SECRET`) in Streamlit secrets. Configure
 `BYBIT_TESTNET` there to select testnet or mainnet; the dashboard does not
-switch to mock balances when an API request fails. Network or IP restrictions
-must be resolved with Bybit for live API data to be available.
+switch to mock balances when an API request fails. Set `BYBIT_DOMAIN` to the
+supported Bybit account domain (`bybit.com` or `bybit.eu`) when needed. A 403
+response is reported as an access restriction; check the selected domain, the
+API key's IP allowlist, and regional API availability with Bybit. Changing the
+endpoint or using a proxy does not bypass regional restrictions.
 
 The engine prefers 6–10 accepted limit-order submissions per UTC day, enforces
 a maximum of 10, and never forces a trade merely to meet the lower target.

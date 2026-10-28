@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "graph": "SESAMFRO",
+  "description": "Explicit P1-P15 feature flow with P14 entry safety and P15 regime selection.",
+  "nodes": {
+    "P1": {"parameter": "github_commit_velocity", "layer": "signal"},
+    "P2": {"parameter": "arxiv_preprint_rate", "layer": "signal"},
+    "P3": {"parameter": "tech_media_mention_index", "layer": "signal"},
+    "P4": {"parameter": "eu_directive_impact_score", "layer": "signal"},
+    "P5": {"parameter": "subsidy_tuff_index", "layer": "signal"},
+    "P6": {"parameter": "regulatory_compliance_lag", "layer": "signal"},
+    "P7": {"parameter": "viral_velocity_score", "layer": "signal"},
+    "P8": {"parameter": "marketplace_shortage_index", "layer": "signal"},
+    "P9": {"parameter": "lifestyle_shift_rate", "layer": "signal"},
+    "P10": {"parameter": "supply_chain_bottleneck_index", "layer": "signal"},
+    "P11": {"parameter": "weather_anomaly_impact", "layer": "signal"},
+    "P12": {"parameter": "commodity_flow_velocity", "layer": "signal"},
+    "P13": {"parameter": "cross_domain_correlation_coefficient", "layer": "signal"},
+    "P14": {
+      "parameter": "public_reaction_speed",
+      "layer": "safety"
+    },
+    "P15": {
+      "parameter": "trend_saturation_level",
+      "layer": "meta_regime"
+    }
+  },
+  "edges": [
+    {"from": "P1", "to": "signal_validation"},
+    {"from": "P2", "to": "signal_validation"},
+    {"from": "P3", "to": "signal_validation"},
+    {"from": "P4", "to": "signal_validation"},
+    {"from": "P5", "to": "signal_validation"},
+    {"from": "P6", "to": "signal_validation"},
+    {"from": "P7", "to": "signal_validation"},
+    {"from": "P8", "to": "signal_validation"},
+    {"from": "P9", "to": "signal_validation"},
+    {"from": "P10", "to": "signal_validation"},
+    {"from": "P11", "to": "signal_validation"},
+    {"from": "P12", "to": "signal_validation"},
+    {"from": "P13", "to": "signal_validation"},
+    {"from": "P14", "to": "circuit_breaker"},
+    {"from": "P15", "to": "regime_selector"},
+    {"from": "circuit_breaker", "to": "order_gate"},
+    {"from": "regime_selector", "to": "order_gate"},
+    {"from": "signal_validation", "to": "order_gate"}
+  ],
+  "p14_safety": {
+    "halt_at_or_above": 0.95,
+    "manual_reset_required": true
+  },
+  "p15_regimes": {
+    "1": {"name": "emerging", "entry_allowed": true},
+    "2": {"name": "maturing", "entry_allowed": true},
+    "3": {"name": "saturated", "entry_allowed": false}
+  }
+}
