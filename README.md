@@ -82,9 +82,7 @@ must be connected to a verified market/position source and supported Bybit
 order-update operation before those adjustments can be applied to live orders.
 
 Add `BYBIT_API_KEY` and `BYBIT_SECRET` to Streamlit secrets to display the
-Bybit USDT equity and available balance. Telegram credentials are optional and can be provided as
-`TELEGRAM_TOKEN` (or `TELEGRAM_BOT_TOKEN`) and `TELEGRAM_CHAT_ID` environment
-variables for the engine. Configure `NTFY_TOPIC` to enable Ntfy notifications
+Bybit USDT equity and available balance. Configure `NTFY_TOPIC` to enable Ntfy notifications
 for portfolio synchronization and signal changes. Use a private topic and set
 `NTFY_ACCESS_TOKEN` when required by the server. The smoke test
 `ntfy_notification_smoke_test.py` sends only to the configured topic.
@@ -94,7 +92,7 @@ The live engine listens to Bybit's authenticated private execution stream on a
 separate WebSocket connection. Closed spot lots that can be matched to entry
 fills observed by this process are saved as JSONL at
 `TRADE_ANALYSIS_PATH` (default `data/trade_outcomes.jsonl`) and reported through
-Telegram or structured logs. Each outcome includes its triggering P1-P15 IDs,
+Ntfy or structured logs. Each outcome includes its triggering P1-P15 IDs,
 fill prices, quantity, fees-adjusted USDT PnL, and a historical signal
 performance summary. The analysis is informational: it does not change signal
 parameters or submit orders. A trade entered before the listener starts cannot
