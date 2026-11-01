@@ -1,3 +1,4 @@
+import math
 import os
 import time
 from pathlib import Path
@@ -136,6 +137,22 @@ def get_live_usdt_balances(api_key, api_secret, testnet):
             usdt.get("locked") or 0.0
         )
     return {"equity": equity, "available": max(available, 0.0)}
+
+
+@st.cache_data(ttl=3600)
+def get_usd_to_sek_rate():
+    try:
+        response = requests.get(
+            "https://api.exchangerate-api.com/v4/latest/USD",
+            timeout=5,
+        )
+        response.raise_for_status()
+        rate = float(response.json()["rates"]["SEK"])
+        if not math.isfinite(rate) or rate <= 0:
+            raise ValueError("The exchange rate must be a positive finite number.")
+        return rate, False
+    except (requests.RequestException, KeyError, TypeError, ValueError):
+        return 10.50, True
 
 
 @st.cache_data(ttl=10)
@@ -285,13 +302,22 @@ def render_live_metrics():
     with row1_col2:
         st.metric(label="Profit (SEK)", value="Not tracked")
 
-    row2_col1, row2_col2, row2_col3 = st.columns(3)
-    with row2_col1:
+    usd_to_sek, using_fallback_rate = get_usd_to_sek_rate()
+    balance_col1, balance_col2 = st.columns(2)
+    with balance_col1:
         balance_value = (
             f"{bybit_equity:.2f} USDT" if bybit_equity is not None else "Unavailable"
         )
-        st.metric(label="Bybit USDT equity", value=balance_value)
-    with row2_col2:
+        st.metric(label="USDT Balance", value=balance_value)
+    with balance_col2:
+        sek_value = (
+            f"{bybit_equity * usd_to_sek:.2f} SEK"
+            if bybit_equity is not None
+            else "Unavailable"
+        )
+        st.metric(label="SEK Value", value=sek_value)
+    row2_col1, row2_col2 = st.columns(2)
+    with row2_col1:
         available_value = (
             f"{bybit_available:.2f} USDT"
             if bybit_available is not None
@@ -303,13 +329,15 @@ def render_live_metrics():
         avanza_cash_by_currency[cash.currency] = (
             avanza_cash_by_currency.get(cash.currency, 0.0) + cash.amount
         )
-    with row2_col3:
+    with row2_col2:
         cash_value = (
             f"{avanza_cash_by_currency['SEK']:.2f} SEK"
             if "SEK" in avanza_cash_by_currency
             else "Unavailable"
         )
         st.metric("Avanza liquid cash", cash_value)
+    if using_fallback_rate:
+        st.caption("USD/SEK exchange rate unavailable; using fallback rate of 10.50.")
     st.metric("Open spot holdings", len(spot_holdings))
     if spot_holdings:
         st.dataframe(
