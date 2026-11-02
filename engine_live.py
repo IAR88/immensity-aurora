@@ -1,6 +1,5 @@
 from __future__ import annotations
-print("Starting engine...", flush=True)
-print("Startar motorn...", flush=True)
+print("Starting engine...", flush=True) 
 
 import json
 import logging

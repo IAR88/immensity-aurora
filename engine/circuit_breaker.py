@@ -58,7 +58,7 @@ class CircuitBreaker:
             self._drawdown_latched = False
             self.drawdown_reason = None
             self.reason = self.p14_reason
-        drawdown = equity / start_equity - 1
+        drawdown = (equity / start_equity) - 1
         if drawdown <= self.max_drawdown_pct:
             self._drawdown_latched = True
             self.drawdown_reason = (

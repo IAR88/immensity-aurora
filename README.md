@@ -89,6 +89,13 @@ variables for the engine. Configure `NTFY_TOPIC` to enable Ntfy notifications
 for portfolio synchronization and signal changes. Use a private topic and set
 `NTFY_ACCESS_TOKEN` when required by the server. The smoke test
 `ntfy_notification_smoke_test.py` sends only to the configured topic.
+The cron engine sends compact English BUY/SELL alerts; manual-approval alerts
+also require HTTPS callback URLs in `NTFY_APPROVE_URL` and `NTFY_CANCEL_URL`.
+Callbacks receive `decision`, `asset`, and `allocation` as query parameters on
+a POST request and must implement the approval or cancellation behavior. Keep
+these URLs private and configure them only for a trusted callback service.
+Autonomous alerts have no action buttons. Native ntfy button colors are
+controlled by each ntfy client and cannot be set by the publisher.
 Cross-currency totals are not calculated without a verified FX rate.
 
 The live engine listens to Bybit's authenticated private execution stream on a
