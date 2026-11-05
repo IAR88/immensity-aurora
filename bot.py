@@ -1,6 +1,4 @@
 from __future__ import annotations
-from pybit.unified_trading import HTTP
-from pybit.unified_trading import HTTP
 
 import logging
 import math
@@ -8,7 +6,19 @@ import os
 import time
 from dataclasses import dataclass
 from decimal import Decimal, ROUND_DOWN, ROUND_UP
-from typing import Any, Final
+from typing import TYPE_CHECKING, Any, Final
+
+from engine_live import (
+    AvanzaPortfolioSnapshot,
+    HjarnanLiveEngine,
+    PREDICTIVE_PARAMETER_NAMES,
+    is_bybit_ip_restriction,
+    load_avanza_portfolio,
+)
+from auth.sessions_manager import bybit_api_domain_parts
+
+if TYPE_CHECKING:
+    from pybit.unified_trading import HTTP
 
 LOG_FILE = "trading_bot.log"
 LOG_FORMAT = "%(asctime)s | %(levelname)s | %(message)s"
@@ -33,8 +43,6 @@ class BotConfig:
     testnet: bool = False
     allow_mainnet_trading: bool = False
     position_mode: str = "one_way"
-    api_key: str = ""
-    api_secret: str = ""
     api_key: str = ""
     api_secret: str = ""
 
@@ -69,8 +77,6 @@ class BotConfig:
             testnet=parse_bool(os.getenv("BYBIT_TESTNET", "true"), "BYBIT_TESTNET"),
             allow_mainnet_trading=parse_bool(os.getenv("BYBIT_ALLOW_MAINNET_TRADING", "false"), "BYBIT_ALLOW_MAINNET_TRADING"),
             position_mode=os.getenv("BOT_POSITION_MODE", "one_way").strip().lower(),
-            api_key=os.getenv("BYBIT_API_KEY", "").strip(),
-            api_secret=os.getenv("BYBIT_API_SECRET", "").strip(),
             api_key=os.getenv("BYBIT_API_KEY", "").strip(),
             api_secret=os.getenv("BYBIT_API_SECRET", "").strip(),
         )
@@ -245,13 +251,27 @@ def main() -> None:
 if __name__ == "__main__":
     main()
 
-def create_bybit_session(config):
+def create_bybit_session(config: BotConfig) -> HTTP:
+    from pybit.unified_trading import HTTP
+
+    api_key = config.api_key or os.getenv("BYBIT_API_KEY", "").strip()
+    api_secret = (
+        config.api_secret
+        or os.getenv("BYBIT_SECRET", "").strip()
+        or os.getenv("BYBIT_API_SECRET", "").strip()
+    )
+    if not api_key or not api_secret:
+        raise ValueError("BYBIT_API_KEY and BYBIT_API_SECRET must be configured.")
+
+    domain, tld = bybit_api_domain_parts(os.getenv("BYBIT_DOMAIN", "bybit.eu"))
     proxy_url = os.getenv("CLOUDFLARE_PROXY_URL")
     if proxy_url:
         os.environ["HTTP_PROXY"] = proxy_url
         os.environ["HTTPS_PROXY"] = proxy_url
     return HTTP(
         testnet=config.testnet,
-        api_key=config.api_key,
-        api_secret=config.api_secret,
+        domain=domain,
+        tld=tld,
+        api_key=api_key,
+        api_secret=api_secret,
     )

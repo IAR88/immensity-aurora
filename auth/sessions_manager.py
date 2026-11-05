@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 def bybit_api_domain_parts(domain: str) -> tuple[str, str]:
     normalized = domain.strip().lower()
     supported_domains = {
+        "bybit": ("bybit", "com"),
         "bybit.com": ("bybit", "com"),
         "bybit.eu": ("bybit", "eu"),
     }
