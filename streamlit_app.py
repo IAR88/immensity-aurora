@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from pybit.exceptions import FailedRequestError
 from pybit.unified_trading import HTTP
 
-from engine_live import (
+from bot import (
     AvanzaPortfolioSnapshot,
     HjarnanLiveEngine,
     PREDICTIVE_PARAMETER_NAMES,
